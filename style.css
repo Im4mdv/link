@@ -1,11 +1,4 @@
-:root {
-  --bg: #040614;
-  --card: #0a1025;
-  --muted: #aab3c8;
-  --accent: #00bfff;
-  --accent2: #4cc9ff;
-}
-
+/* === Layout Fix agar tetap 1 kolom center === */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, sans-serif;
@@ -13,22 +6,29 @@ body {
   color: #fff;
   min-height: 100vh;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 32px 16px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 28px 12px;
+  overflow-x: hidden;
 }
 
 .wrap {
   width: 100%;
-  max-width: 740px;
+  max-width: 420px; /* biar pas di HP dan tetap center */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
 }
 
 .card {
+  width: 100%;
   background: linear-gradient(145deg, rgba(8,14,30,0.96), rgba(3,8,20,0.9));
-  border-radius: 16px;
-  padding: 28px 26px;
+  border-radius: 18px;
+  padding: 26px 20px;
   border: 1px solid rgba(0,191,255,0.25);
-  box-shadow: 0 0 22px rgba(0,191,255,0.25);
+  box-shadow: 0 0 25px rgba(0,191,255,0.25);
   backdrop-filter: blur(12px);
   transition: all 0.3s ease;
   position: relative;
@@ -37,131 +37,68 @@ body {
 
 .card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 0 30px rgba(0,191,255,0.4);
+  box-shadow: 0 0 36px rgba(0,191,255,0.45);
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.avatar img {
-  width: 80px;
-  height: 80px;
-  border-radius: 14px;
-  object-fit: cover;
-  box-shadow: 0 0 12px rgba(0,191,255,0.5);
-}
-
-h1 {
-  margin: 0;
-  font-size: 22px;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-p.tag {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.musicBtn {
-  margin-top: 8px;
-  display: inline-block;
-  background: rgba(0,191,255,0.15);
-  border: 1px solid rgba(255,255,255,0.2);
-  padding: 5px 9px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.musicBtn:hover {
-  background: rgba(0,191,255,0.35);
-  box-shadow: 0 0 10px rgba(0,191,255,0.4);
-}
-
+/* Semua tombol di dalam card */
 .btns {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-top: 20px;
+  width: 100%;
 }
 
 .btn {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(0,191,255,0.2);
-  border-radius: 10px;
-  padding: 12px 14px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(0,191,255,0.2);
   color: #fff;
   text-decoration: none;
   transition: 0.25s;
+  width: 100%;
 }
 .btn:hover {
-  background: rgba(0,191,255,0.1);
+  background: rgba(0,191,255,0.15);
   box-shadow: 0 0 14px rgba(0,191,255,0.3);
   transform: translateY(-2px);
 }
 
-.music {
-  margin-top: 22px;
-  border: 1px solid rgba(0,191,255,0.25);
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-}
-
-.note {
-  color: var(--muted);
-  font-size: 13px;
-  margin-top: 10px;
-}
-
-.footer {
-  margin-top: 18px;
-  color: var(--muted);
-  text-align: center;
-  font-size: 13px;
-}
-
-input, textarea {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  background: #06080f;
-  border: 1px solid rgba(0,191,255,0.2);
-  color: #fff;
-}
-
-/* Animasi kirim foto */
+/* Kirim foto section */
 .slidebox {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: all 0.4s ease;
-}
-.slidebox.show {
-  max-height: 500px;
-  opacity: 1;
+  width: 100%;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(0,191,255,0.2);
+  border-radius: 14px;
+  padding: 16px;
   margin-top: 10px;
+  transition: all 0.4s ease;
+  text-align: center;
 }
 
-/* Efek cahaya neon halus */
-.card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  background: radial-gradient(circle at 30% 30%, rgba(0,191,255,0.15), transparent 70%);
-  z-index: 0;
+.slidebox.show {
+  max-height: 600px;
+  opacity: 1;
 }
-.card > * {
-  position: relative;
+
+/* Footer tetap center */
+.footer {
+  margin-top: 20px;
+  text-align: center;
+  color: #8da7c0;
+  font-size: 13px;
+}
+
+/* Hindari animasi atau butterfly ngedorong layout */
+.butterfly {
+  position: fixed;
+  font-size: 22px;
+  color: #00d4ff;
+  opacity: 0.8;
+  pointer-events: none;
   z-index: 1;
 }

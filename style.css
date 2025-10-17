@@ -128,9 +128,9 @@ p.tag {
   background: linear-gradient(90deg, rgba(197,108,255,0.15), rgba(76,201,255,0.15));
   color: #fff;
   border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 8px;
-  padding: 6px 6px;
-  font-size: 12px;
+  border-radius: 8px;      /* lebih membulat */
+  padding: 6px 6px;        /* lebih luas */
+  font-size: 12px;           /* teks lebih besar */
   cursor: pointer;
   backdrop-filter: blur(6px);
   display: inline-block;
@@ -139,7 +139,10 @@ p.tag {
   transition: all 0.4s ease;
   margin-top: 6px;
   box-shadow: 0 0 10px rgba(197,108,255,0.25);
+  width: auto;               /* atau bisa pakai px seperti 120px */
+  text-align: center;        /* pastikan teks di tengah */
 }
+
 .musicBtn.show {
   opacity: 1;
   transform: translateY(0);

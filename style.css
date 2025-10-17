@@ -139,7 +139,7 @@ p.tag {
   transition: all 0.4s ease;
   margin-top: 6px;
   box-shadow: 0 0 10px rgba(197,108,255,0.25);
-  width: auto;               /* atau bisa pakai px seperti 120px */
+  width: 100;               /* atau bisa pakai px seperti 120px */
   text-align: center;        /* pastikan teks di tengah */
 }
 

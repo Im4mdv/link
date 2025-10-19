@@ -371,8 +371,8 @@ showVisitorInfo();
   const spotifyBox = document.createElement("div");
   spotifyBox.id = "spotifyPreviewBox";
   spotifyBox.style.cssText = `
-    width:100%;
-    max-width:100px;        /* ⬅️ Lebih kecil */
+    width:50%;
+    max-width:50px;        /* ⬅️ Lebih kecil */
     margin:12px auto 4px;
     text-align:center;
     display:flex;

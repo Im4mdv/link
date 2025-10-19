@@ -375,3 +375,85 @@ if (ua.includes("Instagram") || ua.includes("FBAV") || ua.includes("FBAN")) {
   `;
   document.body.appendChild(warn);
 }
+
+// === SPOTIFY PREVIEW TAMBAHAN (tidak mengubah fungsi lama) ===
+(async function(){
+  const API_URL = "https://sybau.imamadevera.workers.dev/spotify"; // endpoint worker baru kamu
+
+  const statusEl = document.getElementById("liveModeStatus");
+  if (!statusEl) return; // kalau belum ada elemen status, stop
+
+  // Buat container
+  const box = document.createElement("div");
+  box.id = "spotifyPreviewBox";
+  box.style.cssText = `
+    width:100%;
+    text-align:center;
+    margin-top:8px;
+    transition:opacity .4s ease;
+    opacity:0;
+  `;
+
+  // Cover
+  const cover = document.createElement("img");
+  cover.id = "spotifyPreviewCover";
+  cover.style.cssText = `
+    width:90%;
+    max-width:240px;
+    border-radius:16px;
+    margin-top:6px;
+    display:none;
+    box-shadow:0 0 20px rgba(76,201,255,0.25);
+  `;
+
+  // Progress bar
+  const wrap = document.createElement("div");
+  wrap.style.cssText = `
+    width:90%;
+    height:6px;
+    background:rgba(255,255,255,0.15);
+    border-radius:4px;
+    margin:8px auto 0;
+    overflow:hidden;
+  `;
+  const bar = document.createElement("div");
+  bar.style.cssText = `
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#4cc9ff,#b5179e);
+    transition:width .3s linear;
+  `;
+  wrap.appendChild(bar);
+
+  box.appendChild(cover);
+  box.appendChild(wrap);
+  statusEl.insertAdjacentElement("afterend", box);
+
+  async function refreshSpotify(){
+    try {
+      const res = await fetch(API_URL, {cache:"no-store"});
+      const data = await res.json();
+
+      if (data.cover) {
+        cover.src = data.cover;
+        cover.style.display = "block";
+      } else {
+        cover.style.display = "none";
+      }
+
+      if (data.progress_ms && data.duration_ms) {
+        const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
+        bar.style.width = percent + "%";
+      } else {
+        bar.style.width = "0%";
+      }
+
+      box.style.opacity = 1;
+    } catch(e) {
+      console.warn("Spotify preview error:", e);
+    }
+  }
+
+  refreshSpotify();
+  setInterval(refreshSpotify, 15000); // refresh setiap 15 detik
+})();

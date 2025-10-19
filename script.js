@@ -372,7 +372,7 @@ showVisitorInfo();
   spotifyBox.id = "spotifyPreviewBox";
   spotifyBox.style.cssText = `
     width:100%;
-    max-width:190px;        /* ⬅️ Lebih kecil */
+    max-width:100px;        /* ⬅️ Lebih kecil */
     margin:12px auto 4px;
     text-align:center;
     display:flex;
@@ -445,5 +445,5 @@ showVisitorInfo();
   }
 
   updateSpotify();
-  setInterval(updateSpotify,5000);
+  setInterval(updateSpotify,8000);
 })();

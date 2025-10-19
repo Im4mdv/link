@@ -362,7 +362,7 @@ showVisitorInfo();
   setInterval(updateStatus, 4000);
 })();
 
-// === REVISI SPOTIFY PREVIEW ELEGAN ===
+// === REVISI SPOTIFY PREVIEW MINI ELEGAN ===
 (async function(){
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
   const liveStatus = document.getElementById("liveModeStatus");
@@ -372,8 +372,8 @@ showVisitorInfo();
   spotifyBox.id = "spotifyPreviewBox";
   spotifyBox.style.cssText = `
     width:100%;
-    max-width:220px;
-    margin:14px auto 4px;
+    max-width:190px;        /* ⬅️ Lebih kecil */
+    margin:12px auto 4px;
     text-align:center;
     display:flex;
     flex-direction:column;
@@ -390,26 +390,27 @@ showVisitorInfo();
     width:100%;
     border-radius:14px;
     display:none;
-    box-shadow:0 0 15px rgba(76,201,255,0.25);
+    box-shadow:0 0 12px rgba(76,201,255,0.25);
     transition:transform .25s ease, box-shadow .3s ease;
   `;
-  // Efek hover lembut
+
+  // Efek hover lembut (desktop)
   cover.addEventListener("mouseenter", () => {
-    cover.style.transform = "scale(1.03)";
-    cover.style.boxShadow = "0 0 25px rgba(76,201,255,0.4)";
+    cover.style.transform = "scale(1.02)";
+    cover.style.boxShadow = "0 0 20px rgba(76,201,255,0.35)";
   });
   cover.addEventListener("mouseleave", () => {
     cover.style.transform = "scale(1)";
-    cover.style.boxShadow = "0 0 15px rgba(76,201,255,0.25)";
+    cover.style.boxShadow = "0 0 12px rgba(76,201,255,0.25)";
   });
 
   const progressWrap = document.createElement("div");
   progressWrap.style.cssText = `
     width:100%;
-    height:5px;
+    height:4px;
     background:rgba(255,255,255,0.1);
     border-radius:4px;
-    margin-top:8px;
+    margin-top:6px;
     overflow:hidden;
   `;
 
@@ -444,5 +445,5 @@ showVisitorInfo();
   }
 
   updateSpotify();
-  setInterval(updateSpotify,7000);
+  setInterval(updateSpotify,5000);
 })();

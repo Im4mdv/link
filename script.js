@@ -323,97 +323,127 @@ showVisitorInfo();
   setInterval(updateStatus, 4000); // refresh tiap 8 detik biar lebih ringan
 })();
 
-// === SPOTIFY PREVIEW WIDE MINI ELEGAN ===
-(async function(){
+// === SPOTIFY WIDGET LEBAR ELEGAN (FULL PRESISI) ===
+(async function () {
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
-  const liveStatus = document.getElementById("liveModeStatus");
-  if (!liveStatus) return;
 
+  // Hilangkan status lama kalau ada
+  const oldStatus = document.getElementById("liveModeStatus");
+  if (oldStatus) oldStatus.style.display = "none";
+
+  // Buat container utama di tengah halaman
   const spotifyBox = document.createElement("div");
-  spotifyBox.id = "spotifyPreviewBox";
+  spotifyBox.id = "spotifyWidgetBox";
   spotifyBox.style.cssText = `
-    width:100%;
-    max-width:280px;
-    margin:10px auto;
-    text-align:center;
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    transition:opacity .4s ease, transform .3s ease;
-    opacity:0;
-    transform:scale(0.98);
+    position: relative;
+    width: 90%;
+    max-width: 350px;
+    margin: 14px auto;
+    text-align: center;
+    background: rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 14px 14px 18px;
+    box-shadow: 0 0 30px rgba(76,201,255,0.18);
+    backdrop-filter: blur(10px);
+    transform: scale(0.98);
+    transition: opacity .4s ease, transform .3s ease;
+    opacity: 0;
   `;
 
-  const coverWrap = document.createElement("div");
-  coverWrap.style.cssText = `
-    position:relative;
-    width:100%;
-    height:100px;              /* ⚡ Lebar tapi ramping */
-    border-radius:12px;
-    overflow:hidden;
-    box-shadow:0 0 18px rgba(76,201,255,0.25);
+  const title = document.createElement("div");
+  title.textContent = "🎧 Listening on Spotify";
+  title.style.cssText = `
+    font-weight: 600;
+    font-size: 15px;
+    color: #b2f0ff;
+    margin-bottom: 8px;
   `;
 
   const cover = document.createElement("img");
-  cover.id = "spotifyPreviewCover";
+  cover.id = "spotifyCover";
   cover.style.cssText = `
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    display:none;
-    transition:transform .25s ease, box-shadow .3s ease;
+    width: 100%;
+    height: auto;
+    max-height: 180px;
+    border-radius: 14px;
+    object-fit: cover;
+    margin-bottom: 10px;
+    display: none;
+    box-shadow: 0 0 20px rgba(76,201,255,0.25);
+    transition: transform .25s ease, box-shadow .3s ease;
   `;
+  cover.addEventListener("mouseenter", () => {
+    cover.style.transform = "scale(1.04)";
+    cover.style.boxShadow = "0 0 26px rgba(76,201,255,0.35)";
+  });
+  cover.addEventListener("mouseleave", () => {
+    cover.style.transform = "scale(1)";
+    cover.style.boxShadow = "0 0 20px rgba(76,201,255,0.25)";
+  });
 
-  // Progress overlay di bawah cover
+  const progressWrap = document.createElement("div");
+  progressWrap.style.cssText = `
+    width: 100%;
+    height: 5px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  `;
   const progressBar = document.createElement("div");
   progressBar.style.cssText = `
-    position:absolute;
-    bottom:0;
-    left:0;
-    height:4px;
-    width:0%;
-    background:linear-gradient(90deg,#4cc9ff,#b5179e);
-    transition:width .4s linear;
-    border-bottom-left-radius:12px;
-    border-bottom-right-radius:12px;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg,#4cc9ff,#b5179e);
+    transition: width .4s linear;
   `;
+  progressWrap.appendChild(progressBar);
 
-  // Hover efek halus
-  coverWrap.addEventListener("mouseenter", () => {
-    coverWrap.style.boxShadow = "0 0 25px rgba(76,201,255,0.45)";
-  });
-  coverWrap.addEventListener("mouseleave", () => {
-    coverWrap.style.boxShadow = "0 0 18px rgba(76,201,255,0.25)";
-  });
+  const songInfo = document.createElement("div");
+  songInfo.style.cssText = `
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    margin-top: 2px;
+    line-height: 1.4em;
+  `;
+  songInfo.textContent = "Not playing anything...";
 
-  coverWrap.appendChild(cover);
-  coverWrap.appendChild(progressBar);
-  spotifyBox.appendChild(coverWrap);
-  liveStatus.insertAdjacentElement("afterend", spotifyBox);
+  spotifyBox.appendChild(title);
+  spotifyBox.appendChild(cover);
+  spotifyBox.appendChild(progressWrap);
+  spotifyBox.appendChild(songInfo);
+  document.body.insertBefore(spotifyBox, document.body.firstChild);
 
-  async function updateSpotify(){
+  async function updateSpotify() {
     try {
-      const res = await fetch(API_URL, {cache:"no-store"});
+      const res = await fetch(API_URL, { cache: "no-store" });
       const data = await res.json();
-      if(data.cover){
+
+      if (data.cover) {
         cover.src = data.cover;
         cover.style.display = "block";
       } else cover.style.display = "none";
 
-      if(data.progress_ms && data.duration_ms){
-        const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
-        progressBar.style.width = percent + "%";
+      if (data.status && data.status.includes("Listening")) {
+        const text = data.status.replace("🎧 Listening on Spotify — ", "");
+        songInfo.innerHTML = `<b>${text}</b>`;
+      } else {
+        songInfo.textContent = "Not playing anything...";
+      }
+
+      if (data.progress_ms && data.duration_ms) {
+        const p = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
+        progressBar.style.width = p + "%";
       } else progressBar.style.width = "0%";
 
       spotifyBox.style.opacity = 1;
       spotifyBox.style.transform = "scale(1)";
-    } catch(e){
-      console.warn("Spotify preview error:", e);
+    } catch (e) {
+      console.warn("Spotify widget error:", e);
     }
   }
 
   updateSpotify();
-  setInterval(updateSpotify, 8000); // refresh tiap 10 detik
+  setInterval(updateSpotify, 8000);
 })();

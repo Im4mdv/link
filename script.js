@@ -323,7 +323,7 @@ showVisitorInfo();
   setInterval(updateStatus, 4000); // refresh tiap 8 detik biar lebih ringan
 })();
 
-// === SPOTIFY PREVIEW WIDE MINI + NOW PLAYING TEXT ===
+// === SPOTIFY PREVIEW WIDE MINI + NOW PLAYING (FIX COVER FIELD) ===
 (async function(){
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
   const liveStatus = document.getElementById("liveModeStatus");
@@ -336,7 +336,6 @@ showVisitorInfo();
     max-width:280px;
     margin:10px auto;
     text-align:center;
-    position:relative;
     display:flex;
     flex-direction:column;
     align-items:center;
@@ -377,14 +376,13 @@ showVisitorInfo();
     transition:width .4s linear;
   `;
 
-  // Teks Now Playing
   const nowPlayingText = document.createElement("div");
   nowPlayingText.style.cssText = `
     font-family:'Poppins', sans-serif;
     font-size:13px;
     margin-top:8px;
     color:#cfcfcf;
-    opacity:0.85;
+    opacity:0.9;
     letter-spacing:0.3px;
   `;
 
@@ -399,19 +397,24 @@ showVisitorInfo();
       const res = await fetch(API_URL, {cache:"no-store"});
       const data = await res.json();
 
-      // Cover album
-      if (data.cover) {
-        cover.src = data.cover;
+      // ✅ Perbaikan untuk berbagai nama field cover
+      const coverURL = data.cover || data.image || data.albumArt || "";
+      if (coverURL) {
+        cover.src = coverURL;
         cover.style.display = "block";
-      } else cover.style.display = "none";
+      } else {
+        cover.style.display = "none";
+      }
 
       // Progress bar
       if (data.progress_ms && data.duration_ms) {
         const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
         progressBar.style.width = percent + "%";
-      } else progressBar.style.width = "0%";
+      } else {
+        progressBar.style.width = "0%";
+      }
 
-      // Tampilkan teks "Now Playing"
+      // Now playing text
       if (data.song) {
         nowPlayingText.innerHTML = `🎵 Now playing:<br><b>${data.song}</b>`;
       } else {

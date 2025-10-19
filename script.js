@@ -323,7 +323,7 @@ showVisitorInfo();
   setInterval(updateStatus, 4000); // refresh tiap 8 detik biar lebih ringan
 })();
 
-// === SPOTIFY PREVIEW WIDE MINI + NOW PLAYING (FIX FIELD SONG) ===
+// === SPOTIFY PREVIEW MINI + NOW PLAYING (MATCH DENGAN DATA JSON KAMU) ===
 (async function(){
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
   const liveStatus = document.getElementById("liveModeStatus");
@@ -362,7 +362,6 @@ showVisitorInfo();
     height:100%;
     object-fit:cover;
     display:none;
-    transition:transform .25s ease, box-shadow .3s ease;
   `;
 
   const progressBar = document.createElement("div");
@@ -397,19 +396,15 @@ showVisitorInfo();
       const res = await fetch(API_URL, {cache:"no-store"});
       const data = await res.json();
 
-      console.log("Spotify data:", data); // 🧠 Debug output
-
-      // Cek semua kemungkinan nama field
-      const coverURL = data.cover || data.image || data.albumArt || "";
-      const songName = data.song || data.title || data.track || "";
-
-      if (coverURL) {
-        cover.src = coverURL;
+      // Ambil cover dari API
+      if (data.cover) {
+        cover.src = data.cover;
         cover.style.display = "block";
       } else {
         cover.style.display = "none";
       }
 
+      // Hitung progress bar
       if (data.progress_ms && data.duration_ms) {
         const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
         progressBar.style.width = percent + "%";
@@ -417,11 +412,19 @@ showVisitorInfo();
         progressBar.style.width = "0%";
       }
 
-      // 🎵 Tampilkan teks Now Playing
+      // Ambil judul lagu dari 'status'
+      let songName = "";
+      if (data.status) {
+        songName = data.status
+          .replace("🎧 Listening on Spotify — ", "")
+          .trim();
+      }
+
+      // Tampilkan hasil
       if (songName) {
         nowPlayingText.innerHTML = `🎵 Now playing:<br><b>${songName}</b>`;
       } else {
-        nowPlayingText.innerHTML = `🎧 Tidak sedang memutar lagu`;
+        nowPlayingText.textContent = "🎧 Tidak sedang memutar lagu";
       }
 
       spotifyBox.style.opacity = 1;

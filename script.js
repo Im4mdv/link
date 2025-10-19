@@ -323,80 +323,108 @@ showVisitorInfo();
   setInterval(updateStatus, 4000); // refresh tiap 8 detik biar lebih ringan
 })();
 
-// === SPOTIFY PREVIEW MINI + NOW PLAYING (MATCH DENGAN DATA JSON KAMU) ===
-(async function(){
+// === SPOTIFY MINI WIDGET ELEGAN ===
+(async function () {
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
   const liveStatus = document.getElementById("liveModeStatus");
   if (!liveStatus) return;
 
+  // Sembunyikan teks lama agar tidak dobel
+  liveStatus.style.display = "none";
+
+  // Bungkus utama widget
   const spotifyBox = document.createElement("div");
-  spotifyBox.id = "spotifyPreviewBox";
+  spotifyBox.id = "spotifyWidgetBox";
   spotifyBox.style.cssText = `
-    width:100%;
-    max-width:280px;
-    margin:10px auto;
-    text-align:center;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    transition:opacity .4s ease, transform .3s ease;
-    opacity:0;
-    transform:scale(0.98);
+    width: 90%;
+    max-width: 320px;
+    margin: 10px auto;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 12px 10px 16px;
+    box-shadow: 0 0 25px rgba(76, 201, 255, 0.15);
+    backdrop-filter: blur(8px);
+    transition: opacity .4s ease, transform .3s ease;
+    opacity: 0;
+    transform: scale(0.97);
   `;
 
-  const coverWrap = document.createElement("div");
-  coverWrap.style.cssText = `
-    position:relative;
-    width:100%;
-    height:100px;
-    border-radius:12px;
-    overflow:hidden;
-    box-shadow:0 0 18px rgba(76,201,255,0.25);
+  // Judul status
+  const title = document.createElement("div");
+  title.textContent = "🎧 Listening on Spotify";
+  title.style.cssText = `
+    font-weight: 600;
+    font-size: 14px;
+    color: #b2f0ff;
+    margin-bottom: 8px;
   `;
 
+  // Cover lagu
   const cover = document.createElement("img");
-  cover.id = "spotifyPreviewCover";
+  cover.id = "spotifyCover";
   cover.style.cssText = `
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    display:none;
+    width: 100%;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    display: none;
+    box-shadow: 0 0 16px rgba(76, 201, 255, 0.25);
+    transition: transform .25s ease, box-shadow .3s ease;
+  `;
+
+  cover.addEventListener("mouseenter", () => {
+    cover.style.transform = "scale(1.03)";
+    cover.style.boxShadow = "0 0 22px rgba(76, 201, 255, 0.35)";
+  });
+  cover.addEventListener("mouseleave", () => {
+    cover.style.transform = "scale(1)";
+    cover.style.boxShadow = "0 0 16px rgba(76, 201, 255, 0.25)";
+  });
+
+  // Progress bar
+  const progressWrap = document.createElement("div");
+  progressWrap.style.cssText = `
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    overflow: hidden;
   `;
 
   const progressBar = document.createElement("div");
   progressBar.style.cssText = `
-    position:absolute;
-    bottom:0;
-    left:0;
-    height:4px;
-    width:0%;
-    background:linear-gradient(90deg,#4cc9ff,#b5179e);
-    transition:width .4s linear;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4cc9ff, #b5179e);
+    transition: width .4s linear;
   `;
 
-  const nowPlayingText = document.createElement("div");
-  nowPlayingText.style.cssText = `
-    font-family:'Poppins', sans-serif;
-    font-size:13px;
-    margin-top:8px;
-    color:#cfcfcf;
-    opacity:0.9;
-    letter-spacing:0.3px;
-  `;
+  progressWrap.appendChild(progressBar);
 
-  coverWrap.appendChild(cover);
-  coverWrap.appendChild(progressBar);
-  spotifyBox.appendChild(coverWrap);
-  spotifyBox.appendChild(nowPlayingText);
+  // Info lagu
+  const songInfo = document.createElement("div");
+  songInfo.style.cssText = `
+    font-size: 13px;
+    font-weight: 500;
+    color: #f2f2f2;
+    margin-top: 4px;
+    line-height: 1.4em;
+  `;
+  songInfo.textContent = "Not playing anything...";
+
+  spotifyBox.appendChild(title);
+  spotifyBox.appendChild(cover);
+  spotifyBox.appendChild(progressWrap);
+  spotifyBox.appendChild(songInfo);
   liveStatus.insertAdjacentElement("afterend", spotifyBox);
 
-  async function updateSpotify(){
+  // === UPDATE DATA DARI API ===
+  async function updateSpotify() {
     try {
-      const res = await fetch(API_URL, {cache:"no-store"});
+      const res = await fetch(API_URL, { cache: "no-store" });
       const data = await res.json();
 
-      // Ambil cover dari API
       if (data.cover) {
         cover.src = data.cover;
         cover.style.display = "block";
@@ -404,36 +432,28 @@ showVisitorInfo();
         cover.style.display = "none";
       }
 
-      // Hitung progress bar
+      if (data.status && data.status.includes("Listening")) {
+        // Ambil teks setelah emoji 🎧
+        const text = data.status.replace("🎧 Listening on Spotify — ", "");
+        songInfo.innerHTML = `<b>${text}</b>`;
+      } else {
+        songInfo.textContent = "Not playing anything...";
+      }
+
       if (data.progress_ms && data.duration_ms) {
-        const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
-        progressBar.style.width = percent + "%";
+        const p = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
+        progressBar.style.width = p + "%";
       } else {
         progressBar.style.width = "0%";
-      }
-
-      // Ambil judul lagu dari 'status'
-      let songName = "";
-      if (data.status) {
-        songName = data.status
-          .replace("🎧 Listening on Spotify — ", "")
-          .trim();
-      }
-
-      // Tampilkan hasil
-      if (songName) {
-        nowPlayingText.innerHTML = `🎵 Now playing:<br><b>${songName}</b>`;
-      } else {
-        nowPlayingText.textContent = "🎧 Tidak sedang memutar lagu";
       }
 
       spotifyBox.style.opacity = 1;
       spotifyBox.style.transform = "scale(1)";
     } catch (e) {
-      console.warn("Spotify preview error:", e);
+      console.warn("Spotify widget error:", e);
     }
   }
 
   updateSpotify();
-  setInterval(updateSpotify, 10000);
+  setInterval(updateSpotify, 8000);
 })();

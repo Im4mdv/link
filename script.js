@@ -323,71 +323,70 @@ showVisitorInfo();
   setInterval(updateStatus, 4000); // refresh tiap 8 detik biar lebih ringan
 })();
 
-// === SPOTIFY WIDGET ELEGAN (FIX GANDA + PRESISI) ===
+// === SPOTIFY WIDGET LEBAR ELEGAN (FULL PRESISI) ===
 (async function () {
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
 
-  // 🔧 Sembunyikan teks lama bawaan web (agar tidak muncul dua)
+  // Hilangkan status lama kalau ada
   const oldStatus = document.getElementById("liveModeStatus");
   if (oldStatus) oldStatus.style.display = "none";
 
-  // === BUAT KOTAK UTAMA WIDGET ===
+  // Buat container utama di tengah halaman
   const spotifyBox = document.createElement("div");
   spotifyBox.id = "spotifyWidgetBox";
   spotifyBox.style.cssText = `
-    width: 95%;
-    max-width: 320px;
-    margin: 10px auto;
+    position: relative;
+    width: 90%;
+    max-width: 350px;
+    margin: 14px auto;
     text-align: center;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 12px 10px 16px;
-    box-shadow: 0 0 25px rgba(76, 201, 255, 0.15);
-    backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 14px 14px 18px;
+    box-shadow: 0 0 30px rgba(76,201,255,0.18);
+    backdrop-filter: blur(10px);
+    transform: scale(0.98);
     transition: opacity .4s ease, transform .3s ease;
     opacity: 0;
-    transform: scale(0.97);
   `;
 
-  // === JUDUL STATUS ===
   const title = document.createElement("div");
   title.textContent = "🎧 Listening on Spotify";
   title.style.cssText = `
     font-weight: 600;
-    font-size: 14px;
+    font-size: 15px;
     color: #b2f0ff;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   `;
 
-  // === COVER LAGU ===
   const cover = document.createElement("img");
   cover.id = "spotifyCover";
   cover.style.cssText = `
     width: 100%;
-    max-height: 130px;
-    border-radius: 12px;
+    height: auto;
+    max-height: 180px;
+    border-radius: 14px;
     object-fit: cover;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     display: none;
-    box-shadow: 0 0 16px rgba(76, 201, 255, 0.25);
+    box-shadow: 0 0 20px rgba(76,201,255,0.25);
     transition: transform .25s ease, box-shadow .3s ease;
   `;
   cover.addEventListener("mouseenter", () => {
-    cover.style.transform = "scale(1.03)";
-    cover.style.boxShadow = "0 0 22px rgba(76, 201, 255, 0.35)";
+    cover.style.transform = "scale(1.04)";
+    cover.style.boxShadow = "0 0 26px rgba(76,201,255,0.35)";
   });
   cover.addEventListener("mouseleave", () => {
     cover.style.transform = "scale(1)";
-    cover.style.boxShadow = "0 0 16px rgba(76, 201, 255, 0.25)";
+    cover.style.boxShadow = "0 0 20px rgba(76,201,255,0.25)";
   });
 
-  // === PROGRESS BAR ===
   const progressWrap = document.createElement("div");
   progressWrap.style.cssText = `
     width: 100%;
-    height: 4px;
-    background: rgba(255,255,255,0.12);
-    border-radius: 4px;
+    height: 5px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 5px;
     overflow: hidden;
     margin-bottom: 6px;
   `;
@@ -400,25 +399,22 @@ showVisitorInfo();
   `;
   progressWrap.appendChild(progressBar);
 
-  // === INFO LAGU ===
   const songInfo = document.createElement("div");
   songInfo.style.cssText = `
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
-    color: #f2f2f2;
+    color: #fff;
     margin-top: 2px;
     line-height: 1.4em;
   `;
   songInfo.textContent = "Not playing anything...";
 
-  // === SUSUN WIDGET ===
   spotifyBox.appendChild(title);
   spotifyBox.appendChild(cover);
   spotifyBox.appendChild(progressWrap);
   spotifyBox.appendChild(songInfo);
-  document.body.insertBefore(spotifyBox, document.body.children[1]);
+  document.body.insertBefore(spotifyBox, document.body.firstChild);
 
-  // === FUNGSI UPDATE DARI API ===
   async function updateSpotify() {
     try {
       const res = await fetch(API_URL, { cache: "no-store" });
@@ -427,9 +423,7 @@ showVisitorInfo();
       if (data.cover) {
         cover.src = data.cover;
         cover.style.display = "block";
-      } else {
-        cover.style.display = "none";
-      }
+      } else cover.style.display = "none";
 
       if (data.status && data.status.includes("Listening")) {
         const text = data.status.replace("🎧 Listening on Spotify — ", "");
@@ -441,9 +435,7 @@ showVisitorInfo();
       if (data.progress_ms && data.duration_ms) {
         const p = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
         progressBar.style.width = p + "%";
-      } else {
-        progressBar.style.width = "0%";
-      }
+      } else progressBar.style.width = "0%";
 
       spotifyBox.style.opacity = 1;
       spotifyBox.style.transform = "scale(1)";
@@ -452,7 +444,6 @@ showVisitorInfo();
     }
   }
 
-  // === INISIALISASI ===
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();

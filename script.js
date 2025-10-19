@@ -362,20 +362,6 @@ showVisitorInfo();
   setInterval(updateStatus, 4000);
 })();
 
-// === DETEKSI INSTAGRAM / FB BROWSER ===
-const ua = navigator.userAgent || navigator.vendor || window.opera;
-if (ua.includes("Instagram") || ua.includes("FBAV") || ua.includes("FBAN")) {
-  const warn = document.createElement("div");
-  warn.textContent = "buka lewat Chrome";
-  warn.style.cssText = `
-    position: fixed; top: 0; left: 0; width: 100%;
-    background: #ffcd4c; color: #000; padding: 10px;
-    text-align: center; font-weight: 600; z-index: 9999;
-    font-family: Inter, system-ui, sans-serif;
-  `;
-  document.body.appendChild(warn);
-}
-
 // === SPOTIFY PREVIEW TAMBAHAN (tidak mengubah fungsi lama) ===
 (async function(){
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify"; // endpoint worker baru kamu
@@ -398,9 +384,9 @@ if (ua.includes("Instagram") || ua.includes("FBAV") || ua.includes("FBAN")) {
   const cover = document.createElement("img");
   cover.id = "spotifyPreviewCover";
   cover.style.cssText = `
-    width:50%;
-    max-width:200px;
-    border-radius:12px;
+    width:90%;
+    max-width:240px;
+    border-radius:16px;
     margin-top:6px;
     display:none;
     box-shadow:0 0 20px rgba(76,201,255,0.25);

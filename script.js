@@ -457,3 +457,41 @@ if (ua.includes("Instagram") || ua.includes("FBAV") || ua.includes("FBAN")) {
   refreshSpotify();
   setInterval(refreshSpotify, 15000); // refresh setiap 15 detik
 })();
+
+
+// === REVISI SPOTIFY PREVIEW TERINTEGRASI ===
+(async function(){
+  const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
+  const liveStatus = document.getElementById("liveModeStatus");
+  if (!liveStatus) return;
+
+  const spotifyBox = document.createElement("div");
+  spotifyBox.id = "spotifyPreviewBox";
+  spotifyBox.style.cssText = "width:100%;text-align:center;margin-top:8px;transition:opacity .4s ease;opacity:0;";
+
+  const cover = document.createElement("img");
+  cover.id = "spotifyPreviewCover";
+  cover.style.cssText = "width:90%;max-width:240px;border-radius:16px;margin-top:6px;display:none;box-shadow:0 0 20px rgba(76,201,255,0.25);";
+
+  const progressWrap = document.createElement("div");
+  progressWrap.style.cssText = "width:90%;height:6px;background:rgba(255,255,255,0.15);border-radius:4px;margin:8px auto 0;overflow:hidden;";
+  const bar = document.createElement("div");
+  bar.style.cssText = "height:100%;width:0%;background:linear-gradient(90deg,#4cc9ff,#b5179e);transition:width .3s linear;";
+  progressWrap.appendChild(bar);
+  spotifyBox.appendChild(cover);
+  spotifyBox.appendChild(progressWrap);
+  liveStatus.insertAdjacentElement("afterend", spotifyBox);
+
+  async function updateSpotify(){
+    try{
+      const res = await fetch(API_URL,{cache:"no-store"});
+      const data = await res.json();
+      if(data.cover){cover.src=data.cover;cover.style.display="block";}else cover.style.display="none";
+      if(data.progress_ms&&data.duration_ms){const p=Math.min((data.progress_ms/data.duration_ms)*100,100);bar.style.width=p+"%";}else bar.style.width="0%";
+      spotifyBox.style.opacity=1;
+    }catch(e){console.warn("Spotify preview error:",e);}
+  }
+
+  updateSpotify();
+  setInterval(updateSpotify,15000);
+})();

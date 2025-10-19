@@ -323,7 +323,7 @@ showVisitorInfo();
   setInterval(updateStatus, 4000); // refresh tiap 8 detik biar lebih ringan
 })();
 
-// === SPOTIFY PREVIEW WIDE MINI + NOW PLAYING (FIX COVER FIELD) ===
+// === SPOTIFY PREVIEW WIDE MINI + NOW PLAYING (FIX FIELD SONG) ===
 (async function(){
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
   const liveStatus = document.getElementById("liveModeStatus");
@@ -349,7 +349,7 @@ showVisitorInfo();
   coverWrap.style.cssText = `
     position:relative;
     width:100%;
-    height:100px;               /* Lebar tapi tidak tinggi */
+    height:100px;
     border-radius:12px;
     overflow:hidden;
     box-shadow:0 0 18px rgba(76,201,255,0.25);
@@ -397,8 +397,12 @@ showVisitorInfo();
       const res = await fetch(API_URL, {cache:"no-store"});
       const data = await res.json();
 
-      // ✅ Perbaikan untuk berbagai nama field cover
+      console.log("Spotify data:", data); // 🧠 Debug output
+
+      // Cek semua kemungkinan nama field
       const coverURL = data.cover || data.image || data.albumArt || "";
+      const songName = data.song || data.title || data.track || "";
+
       if (coverURL) {
         cover.src = coverURL;
         cover.style.display = "block";
@@ -406,7 +410,6 @@ showVisitorInfo();
         cover.style.display = "none";
       }
 
-      // Progress bar
       if (data.progress_ms && data.duration_ms) {
         const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
         progressBar.style.width = percent + "%";
@@ -414,11 +417,11 @@ showVisitorInfo();
         progressBar.style.width = "0%";
       }
 
-      // Now playing text
-      if (data.song) {
-        nowPlayingText.innerHTML = `🎵 Now playing:<br><b>${data.song}</b>`;
+      // 🎵 Tampilkan teks Now Playing
+      if (songName) {
+        nowPlayingText.innerHTML = `🎵 Now playing:<br><b>${songName}</b>`;
       } else {
-        nowPlayingText.textContent = "🎧 Tidak sedang memutar lagu";
+        nowPlayingText.innerHTML = `🎧 Tidak sedang memutar lagu`;
       }
 
       spotifyBox.style.opacity = 1;

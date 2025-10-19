@@ -362,7 +362,7 @@ showVisitorInfo();
   setInterval(updateStatus, 4000);
 })();
 
-// === REVISI SPOTIFY PREVIEW TERINTEGRASI ===
+// === REVISI SPOTIFY PREVIEW ELEGAN ===
 (async function(){
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
   const liveStatus = document.getElementById("liveModeStatus");
@@ -372,31 +372,42 @@ showVisitorInfo();
   spotifyBox.id = "spotifyPreviewBox";
   spotifyBox.style.cssText = `
     width:100%;
-    max-width:260px;
-    margin:12px auto 0;
+    max-width:220px;
+    margin:14px auto 4px;
     text-align:center;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    transition:opacity .4s ease;
+    transition:opacity .4s ease, transform .3s ease;
     opacity:0;
+    transform:scale(0.98);
   `;
 
   const cover = document.createElement("img");
   cover.id = "spotifyPreviewCover";
   cover.style.cssText = `
     width:100%;
-    border-radius:18px;
+    border-radius:14px;
     display:none;
-    box-shadow:0 0 25px rgba(76,201,255,0.25);
+    box-shadow:0 0 15px rgba(76,201,255,0.25);
+    transition:transform .25s ease, box-shadow .3s ease;
   `;
+  // Efek hover lembut
+  cover.addEventListener("mouseenter", () => {
+    cover.style.transform = "scale(1.03)";
+    cover.style.boxShadow = "0 0 25px rgba(76,201,255,0.4)";
+  });
+  cover.addEventListener("mouseleave", () => {
+    cover.style.transform = "scale(1)";
+    cover.style.boxShadow = "0 0 15px rgba(76,201,255,0.25)";
+  });
 
   const progressWrap = document.createElement("div");
   progressWrap.style.cssText = `
     width:100%;
-    height:6px;
-    background:rgba(255,255,255,0.15);
+    height:5px;
+    background:rgba(255,255,255,0.1);
     border-radius:4px;
     margin-top:8px;
     overflow:hidden;
@@ -407,7 +418,7 @@ showVisitorInfo();
     height:100%;
     width:0%;
     background:linear-gradient(90deg,#4cc9ff,#b5179e);
-    transition:width .3s linear;
+    transition:width .4s linear;
   `;
 
   progressWrap.appendChild(bar);
@@ -428,9 +439,10 @@ showVisitorInfo();
         bar.style.width=p+"%";
       } else bar.style.width="0%";
       spotifyBox.style.opacity=1;
+      spotifyBox.style.transform="scale(1)";
     }catch(e){console.warn("Spotify preview error:",e);}
   }
 
   updateSpotify();
-  setInterval(updateSpotify,6000);
+  setInterval(updateSpotify,7000);
 })();

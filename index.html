@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>im4mdv</title>
+  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,26 +20,36 @@
       </div>
 
       <div class="btns">
-        <a class="btn" href="https://www.tiktok.com/@koplingterus" target="_blank">📱 TikTok</a>
+        <a class="btn" href="https://www.tiktok.com/@koplingterus" target="_blank">📱 Tiktok</a>
         <a class="btn" href="https://open.spotify.com/user/31ekkvvirtytc24a46swumscuv3e" target="_blank">🎸 Spotify</a>
         <a class="btn" href="https://www.instagram.com/im4mdv" target="_blank">📸 Instagram</a>
         <button class="btn" id="openAsk">📬 Pertanyaan/Question</button>
       </div>
 
+      <!-- ==== BAGIAN KIRIM FOTO BARU ==== -->
       <div class="music">
         <h3>🖼️ Kirim foto?</h3>
         <p class="note">Unggah foto yang akan dikirim 📨</p>
-        <button class="btn" id="takePhoto" style="margin-bottom:8px;">📸 Ambil Foto</button>
-        <input type="file" id="photoInput" accept="image/*">
+        <button class="btn" id="openPhotoOptions">😿 Kirim foto disini</button>
+
+        <div id="photoOptions" class="slidebox">
+          <button class="btn" id="takePhoto">📸 Ambil Foto</button>
+          <input type="file" id="photoInput" accept="image/*" style="margin-top:6px;">
+          <textarea id="caption" rows="2" placeholder="Tulis pesan ya!" style="margin-top:8px;"></textarea>
+          <button class="btn" id="sendPhoto" style="margin-top:8px;">📨 Kirim Foto</button>
+          <div id="status" class="note"></div>
+        </div>
+
         <img id="photoPreview" style="display:none;margin-top:10px;width:100%;border-radius:8px;">
-        <textarea id="caption" rows="2" placeholder="Tulis pesan ya!"></textarea>
-        <button class="btn" id="sendPhoto" style="margin-top:8px;">📨 Kirim Foto</button>
-        <div id="status" class="note"></div>
       </div>
+      <!-- ==== END KIRIM FOTO ==== -->
 
       <div class="footer">stay calm</div>
     </div>
   </div>
+
+  <!-- script lain tetap sama -->
+  
 
   <div class="modal" id="modal">
     <div class="panel">
@@ -62,8 +73,18 @@
   </div>
 
   <div id="igStatus"></div>
-  <audio id="bgmusic" src="https://hipstrumentals.com/wp-content/uploads/2025/07/Lil-Peep-Ft.-rainy-bear-nuts-Instrumental-Prod.-By-Willie-G.mp3" preload="auto" muted></audio>
+  <audio id="bgmusic" src="https://files.catbox.moe/zf650e.mp3" preload="auto" muted></audio>
 
-  <script src="script.js" defer></script>
+  
+
+  
+
+  
+<!-- === Live Mode Status (Light Fade-Up Version) === -->
+
+
+
+
+  <script src="script.js"></script>
 </body>
 </html>

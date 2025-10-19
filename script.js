@@ -1,5 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const openPhotoOptions = document.getElementById('openPhotoOptions');
+const openPhotoOptions = document.getElementById('openPhotoOptions');
     const photoOptions = document.getElementById('photoOptions');
     openPhotoOptions.addEventListener('click', () => {
       photoOptions.classList.toggle('show');
@@ -336,6 +335,4 @@ showVisitorInfo();
       font-family: Inter, system-ui, sans-serif;
     `;
     document.body.appendChild(warn);
-  }// seluruh script asli dari index.html lama dimasukkan di sini tanpa perubahan logika
-  console.log("✅ Script utama dimuat dan berjalan stabil.");
-});
+  }

@@ -323,15 +323,11 @@ showVisitorInfo();
   setInterval(updateStatus, 4000); // refresh tiap 8 detik biar lebih ringan
 })();
 
-// === SPOTIFY WIDGET ELEGAN (FIX GANDA + PRESISI) ===
+// === SPOTIFY WIDGET ELEGAN (TAMPILAN LEBAR PRESISI + HANYA 1 TEKS) ===
 (async function () {
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
 
-  // 🔧 Sembunyikan teks lama bawaan web (agar tidak muncul dua)
-  const oldStatus = document.getElementById("liveModeStatus");
-  if (oldStatus) oldStatus.style.display = "none";
-
-  // === BUAT KOTAK UTAMA WIDGET ===
+  // Buat kontainer utama
   const spotifyBox = document.createElement("div");
   spotifyBox.id = "spotifyWidgetBox";
   spotifyBox.style.cssText = `
@@ -349,7 +345,7 @@ showVisitorInfo();
     transform: scale(0.97);
   `;
 
-  // === JUDUL STATUS ===
+  // Judul status
   const title = document.createElement("div");
   title.textContent = "🎧 Listening on Spotify";
   title.style.cssText = `
@@ -359,7 +355,7 @@ showVisitorInfo();
     margin-bottom: 6px;
   `;
 
-  // === COVER LAGU ===
+  // Cover album
   const cover = document.createElement("img");
   cover.id = "spotifyCover";
   cover.style.cssText = `
@@ -381,7 +377,7 @@ showVisitorInfo();
     cover.style.boxShadow = "0 0 16px rgba(76, 201, 255, 0.25)";
   });
 
-  // === PROGRESS BAR ===
+  // Progress bar
   const progressWrap = document.createElement("div");
   progressWrap.style.cssText = `
     width: 100%;
@@ -400,7 +396,7 @@ showVisitorInfo();
   `;
   progressWrap.appendChild(progressBar);
 
-  // === INFO LAGU ===
+  // Info lagu
   const songInfo = document.createElement("div");
   songInfo.style.cssText = `
     font-size: 13px;
@@ -411,14 +407,14 @@ showVisitorInfo();
   `;
   songInfo.textContent = "Not playing anything...";
 
-  // === SUSUN WIDGET ===
+  // Gabungkan semuanya
   spotifyBox.appendChild(title);
   spotifyBox.appendChild(cover);
   spotifyBox.appendChild(progressWrap);
   spotifyBox.appendChild(songInfo);
   document.body.insertBefore(spotifyBox, document.body.children[1]);
 
-  // === FUNGSI UPDATE DARI API ===
+  // Fungsi refresh Spotify
   async function updateSpotify() {
     try {
       const res = await fetch(API_URL, { cache: "no-store" });
@@ -427,9 +423,7 @@ showVisitorInfo();
       if (data.cover) {
         cover.src = data.cover;
         cover.style.display = "block";
-      } else {
-        cover.style.display = "none";
-      }
+      } else cover.style.display = "none";
 
       if (data.status && data.status.includes("Listening")) {
         const text = data.status.replace("🎧 Listening on Spotify — ", "");
@@ -452,7 +446,6 @@ showVisitorInfo();
     }
   }
 
-  // === INISIALISASI ===
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();

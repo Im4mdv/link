@@ -442,4 +442,4 @@ showVisitorInfo();
 
   refreshSpotify();
   setInterval(refreshSpotify, 15000); // refresh setiap 15 detik
-}
+})();

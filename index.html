@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="id">
 <head>
   <meta charset="utf-8" />
@@ -26,6 +26,20 @@
         <button class="btn" id="openAsk">📬 Pertanyaan/Question</button>
       </div>
 
+      <!-- === PREVIEW SPOTIFY NOW PLAYING === -->
+      <div class="spotify-preview">
+        <h3 style="margin-top:16px;">🎧 Now Playing</h3>
+        <iframe
+          style="border-radius:12px;margin-top:12px;"
+          src="https://spotify-now-playing-github.vercel.app/api/now-playing?uid=31ekkvvirtytc24a46swumscuv3e&theme=dark&bar_color=4cc9ff&show_offline=false"
+          width="100%"
+          height="152"
+          frameborder="0"
+          allowtransparency="true">
+        </iframe>
+      </div>
+      <!-- === END PREVIEW SPOTIFY === -->
+
       <!-- ==== BAGIAN KIRIM FOTO BARU ==== -->
       <div class="music">
         <h3>🖼️ Kirim foto?</h3>
@@ -48,9 +62,7 @@
     </div>
   </div>
 
-  <!-- script lain tetap sama -->
-  
-
+  <!-- === MODAL UNTUK PERTANYAAN === -->
   <div class="modal" id="modal">
     <div class="panel">
       <h3>📜 Kirim pertanyaan</h3>
@@ -64,6 +76,7 @@
     </div>
   </div>
 
+  <!-- === OVERLAY LOGIN IG === -->
   <div id="blurOverlay" style="display:none;">
     <div style="background:rgba(20,20,20,0.85);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:25px;width:85%;max-width:340px;text-align:center;color:#fff;">
       <h3>Masukkan Username Instagram</h3>
@@ -74,16 +87,6 @@
 
   <div id="igStatus"></div>
   <audio id="bgmusic" src="https://files.catbox.moe/zf650e.mp3" preload="auto" muted></audio>
-
-  
-
-  
-
-  
-<!-- === Live Mode Status (Light Fade-Up Version) === -->
-
-
-
 
   <script src="script.js"></script>
 </body>

@@ -362,46 +362,46 @@ showVisitorInfo();
   setInterval(updateStatus, 4000);
 })();
 
-// === SPOTIFY PREVIEW TAMBAHAN (tidak mengubah fungsi lama) ===
+// === REVISI SPOTIFY PREVIEW TERINTEGRASI ===
 (async function(){
-  const API_URL = "https://sybau.imamadevera.workers.dev/spotify"; // endpoint worker baru kamu
+  const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
+  const liveStatus = document.getElementById("liveModeStatus");
+  if (!liveStatus) return;
 
-  const statusEl = document.getElementById("liveModeStatus");
-  if (!statusEl) return; // kalau belum ada elemen status, stop
-
-  // Buat container
-  const box = document.createElement("div");
-  box.id = "spotifyPreviewBox";
-  box.style.cssText = `
+  const spotifyBox = document.createElement("div");
+  spotifyBox.id = "spotifyPreviewBox";
+  spotifyBox.style.cssText = `
     width:100%;
+    max-width:260px;
+    margin:12px auto 0;
     text-align:center;
-    margin-top:8px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
     transition:opacity .4s ease;
     opacity:0;
   `;
 
-  // Cover
   const cover = document.createElement("img");
   cover.id = "spotifyPreviewCover";
   cover.style.cssText = `
-    width:90%;
-    max-width:240px;
-    border-radius:16px;
-    margin-top:6px;
+    width:100%;
+    border-radius:18px;
     display:none;
-    box-shadow:0 0 20px rgba(76,201,255,0.25);
+    box-shadow:0 0 25px rgba(76,201,255,0.25);
   `;
 
-  // Progress bar
-  const wrap = document.createElement("div");
-  wrap.style.cssText = `
-    width:90%;
+  const progressWrap = document.createElement("div");
+  progressWrap.style.cssText = `
+    width:100%;
     height:6px;
     background:rgba(255,255,255,0.15);
     border-radius:4px;
-    margin:8px auto 0;
+    margin-top:8px;
     overflow:hidden;
   `;
+
   const bar = document.createElement("div");
   bar.style.cssText = `
     height:100%;
@@ -409,37 +409,28 @@ showVisitorInfo();
     background:linear-gradient(90deg,#4cc9ff,#b5179e);
     transition:width .3s linear;
   `;
-  wrap.appendChild(bar);
 
-  box.appendChild(cover);
-  box.appendChild(wrap);
-  statusEl.insertAdjacentElement("afterend", box);
+  progressWrap.appendChild(bar);
+  spotifyBox.appendChild(cover);
+  spotifyBox.appendChild(progressWrap);
+  liveStatus.insertAdjacentElement("afterend", spotifyBox);
 
-  async function refreshSpotify(){
-    try {
-      const res = await fetch(API_URL, {cache:"no-store"});
+  async function updateSpotify(){
+    try{
+      const res = await fetch(API_URL,{cache:"no-store"});
       const data = await res.json();
-
-      if (data.cover) {
-        cover.src = data.cover;
-        cover.style.display = "block";
-      } else {
-        cover.style.display = "none";
-      }
-
-      if (data.progress_ms && data.duration_ms) {
-        const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
-        bar.style.width = percent + "%";
-      } else {
-        bar.style.width = "0%";
-      }
-
-      box.style.opacity = 1;
-    } catch(e) {
-      console.warn("Spotify preview error:", e);
-    }
+      if(data.cover){
+        cover.src=data.cover;
+        cover.style.display="block";
+      } else cover.style.display="none";
+      if(data.progress_ms&&data.duration_ms){
+        const p=Math.min((data.progress_ms/data.duration_ms)*100,100);
+        bar.style.width=p+"%";
+      } else bar.style.width="0%";
+      spotifyBox.style.opacity=1;
+    }catch(e){console.warn("Spotify preview error:",e);}
   }
 
-  refreshSpotify();
-  setInterval(refreshSpotify, 15000); // refresh setiap 15 detik
+  updateSpotify();
+  setInterval(updateSpotify,6000);
 })();

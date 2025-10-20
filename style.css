@@ -325,28 +325,69 @@ textarea::placeholder {
   z-index: 9;
 }
 
-/* === RESPONSIVE DESKTOP ENHANCEMENT === */
-@media (min-width: 768px) {
+/* === MOBILE CARD ELEGAN (PROPORSI 4:3 / LEBAR) === */
+@media (max-width: 520px) {
   body {
+    padding: 0;
+    background: radial-gradient(circle at center, #0b0b0d 0%, #000 100%);
     display: flex;
-    align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at center, #0a0a0f 0%, #000 100%);
-    padding: 40px;
+    align-items: flex-start;
+    min-height: 100vh;
   }
 
   .wrap {
+    width: 100%;
     display: flex;
     justify-content: center;
-    align-items: center;
   }
 
   .card {
-    width: 420px;
-    transform: scale(1.05);
+    width: 94%;                /* Lebih lebar */
+    aspect-ratio: 4 / 3;       /* Proporsi elegan horizontal */
+    margin-top: 32px;
     border-radius: 20px;
-    padding: 32px;
+    padding: 24px 22px;
+    background: rgba(17, 18, 20, 0.85);
     box-shadow:
-      0 0 25px rgba(197, 108, 255, 0.25),
-      0 0 55px rgba(76, 201, 255, 0.15)
+      0 0 25px rgba(197,108,255,0.15),
+      0 0 40px rgba(76,201,255,0.1);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* biar konten tidak terlalu padat */
+  }
+
+  .avatar img {
+    width: 78px;
+    height: 78px;
+    border-radius: 16px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  p.tag {
+    font-size: 13px;
+    color: #a7a7aa;
+  }
+
+  .btn {
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .musicBtn {
+    padding: 8px 12px;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  .footer {
+    font-size: 12px;
+    margin-top: 16px;
+    opacity: 0.8;
+  }
 }

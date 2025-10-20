@@ -294,34 +294,42 @@ showVisitorInfo();
     b.style.fontSize = butterflies[i].size + 'px';
   }
 
-  // animasi terbang
-  function moveButterflies() {
-    const rect = getBounds();
-    const time = performance.now() / 200;
-    butterflies.forEach(b => {
-      b.vy += 0.002;
-      if (holdActive) {
-        const dx = holdX - b.x;
-        const dy = holdY - b.y;
-        b.vx += dx * 0.002;
-        b.vy += dy * 0.002;
-      }
-      b.vx += Math.sin(time + b.flapOffset) * 0.04;
-      b.vy += Math.cos(time + b.flapOffset) * 0.02;
-      b.x += b.vx;
-      b.y += b.vy;
-      if (b.x <= 0 || b.x >= rect.width - b.size) b.vx *= -0.8;
-      if (b.y <= 0 || b.y >= rect.height - b.size) b.vy *= -0.8;
-      b.vx = Math.max(-1.8, Math.min(1.5, b.vx));
-      b.vy = Math.max(-1.8, Math.min(1.8, b.vy));
-      const flap = Math.sin(time * 8 + b.flapOffset) * 20;
-      b.el.style.left = b.x + 'px';
-      b.el.style.top = b.y + 'px';
-      b.el.style.transform = `rotate(${flap}deg) scale(${1 + Math.sin(time * 4 + b.flapOffset) * 0.05})`;
-    });
-    requestAnimationFrame(moveButterflies);
-  }
-  moveButterflies();
+// animasi terbang — versi GPU-accelerated 60 FPS
+function moveButterflies() {
+  const rect = getBounds();
+  const time = performance.now() / 200;
+
+  butterflies.forEach(b => {
+    b.vy += 0.002;
+    if (holdActive) {
+      const dx = holdX - b.x;
+      const dy = holdY - b.y;
+      b.vx += dx * 0.002;
+      b.vy += dy * 0.002;
+    }
+    b.vx += Math.sin(time + b.flapOffset) * 0.04;
+    b.vy += Math.cos(time + b.flapOffset) * 0.02;
+    b.x += b.vx;
+    b.y += b.vy;
+
+    if (b.x <= 0 || b.x >= rect.width - b.size) b.vx *= -0.8;
+    if (b.y <= 0 || b.y >= rect.height - b.size) b.vy *= -0.8;
+    b.vx = Math.max(-1.8, Math.min(1.5, b.vx));
+    b.vy = Math.max(-1.8, Math.min(1.8, b.vy));
+
+    const flap = Math.sin(time * 8 + b.flapOffset) * 20;
+
+    // 🟢 gunakan 1 transform GPU, bukan left/top
+    b.el.style.transform = `
+      translate(${b.x}px, ${b.y}px)
+      rotate(${flap}deg)
+      scale(${1 + Math.sin(time * 4 + b.flapOffset) * 0.05})
+    `;
+  });
+
+  requestAnimationFrame(moveButterflies);
+}
+moveButterflies();
 
   // input gerakan di-throttle dengan rAF
   let pendingMove = null;

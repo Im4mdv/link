@@ -362,13 +362,15 @@ showVisitorInfo();
   setInterval(updateStatus, 4000);
 })();
 
-// === SPOTIFY PREVIEW WIDE MINI ELEGAN ===
+// === SPOTIFY PREVIEW WIDE MINI ELEGAN (FIX TEKS DI BAWAH GAMBAR) ===
 (async function(){
   const API_URL = "https://sybau.imamadevera.workers.dev/spotify";
-  const liveStatus = document.getElementById("liveModeStatus");
+  let liveStatus = document.getElementById("liveModeStatus");
+
+  // kalau belum ada, jangan lanjut
   if (!liveStatus) return;
 
-  // kotak utama spotify
+  // buat container Spotify
   const spotifyBox = document.createElement("div");
   spotifyBox.id = "spotifyPreviewBox";
   spotifyBox.style.cssText = `
@@ -386,18 +388,17 @@ showVisitorInfo();
     transform:scale(0.98);
   `;
 
-  // pembungkus cover lagu
+  // cover image wrapper
   const coverWrap = document.createElement("div");
   coverWrap.style.cssText = `
     position:relative;
     width:100%;
-    height:100px;              /* ⚡ Lebar tapi ramping */
+    height:100px;
     border-radius:12px;
     overflow:hidden;
     box-shadow:0 0 18px rgba(76,201,255,0.25);
   `;
 
-  // gambar cover
   const cover = document.createElement("img");
   cover.id = "spotifyPreviewCover";
   cover.style.cssText = `
@@ -408,7 +409,6 @@ showVisitorInfo();
     transition:transform .25s ease, box-shadow .3s ease;
   `;
 
-  // progress bar di bawah cover
   const progressBar = document.createElement("div");
   progressBar.style.cssText = `
     position:absolute;
@@ -422,7 +422,7 @@ showVisitorInfo();
     border-bottom-right-radius:12px;
   `;
 
-  // efek hover halus
+  // hover efek
   coverWrap.addEventListener("mouseenter", () => {
     coverWrap.style.boxShadow = "0 0 25px rgba(76,201,255,0.45)";
   });
@@ -430,35 +430,32 @@ showVisitorInfo();
     coverWrap.style.boxShadow = "0 0 18px rgba(76,201,255,0.25)";
   });
 
-  // gabungkan elemen
   coverWrap.appendChild(cover);
   coverWrap.appendChild(progressBar);
-  spotifyBox.appendChild(coverWrap);
 
-  // 👉 teks status spotify (liveStatus) diletakkan DI BAWAH cover
+  // masukkan semua ke dalam box Spotify
+  spotifyBox.appendChild(coverWrap);
+  spotifyBox.appendChild(liveStatus); // pastikan teks di bawah gambar
+
+  // pindahkan posisi lama liveStatus ke sini
+  liveStatus.parentNode.insertBefore(spotifyBox, liveStatus);
   spotifyBox.appendChild(liveStatus);
 
-  // tampilkan box spotify di halaman
-  liveStatus.insertAdjacentElement("beforebegin", spotifyBox);
-
+  // update data Spotify
   async function updateSpotify(){
     try {
       const res = await fetch(API_URL, {cache:"no-store"});
       const data = await res.json();
 
-      if (data.cover) {
+      if(data.cover){
         cover.src = data.cover;
         cover.style.display = "block";
-      } else {
-        cover.style.display = "none";
-      }
+      } else cover.style.display = "none";
 
-      if (data.progress_ms && data.duration_ms) {
+      if(data.progress_ms && data.duration_ms){
         const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
         progressBar.style.width = percent + "%";
-      } else {
-        progressBar.style.width = "0%";
-      }
+      } else progressBar.style.width = "0%";
 
       spotifyBox.style.opacity = 1;
       spotifyBox.style.transform = "scale(1)";
@@ -468,5 +465,5 @@ showVisitorInfo();
   }
 
   updateSpotify();
-  setInterval(updateSpotify, 8000); // refresh tiap 80 detik
+  setInterval(updateSpotify, 8000);
 })();

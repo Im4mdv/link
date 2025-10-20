@@ -435,8 +435,8 @@ showVisitorInfo();
   coverWrap.appendChild(progressBar);
   spotifyBox.appendChild(coverWrap);
 
-  // 👉 teks status spotify (liveStatus) diletakkan di bawah cover
-  coverWrap.insertAdjacentElement("afterend", liveStatus);
+  // 👉 teks status spotify (liveStatus) diletakkan DI BAWAH cover
+  spotifyBox.appendChild(liveStatus);
 
   // tampilkan box spotify di halaman
   liveStatus.insertAdjacentElement("beforebegin", spotifyBox);
@@ -446,14 +446,14 @@ showVisitorInfo();
       const res = await fetch(API_URL, {cache:"no-store"});
       const data = await res.json();
 
-      if(data.cover){
+      if (data.cover) {
         cover.src = data.cover;
         cover.style.display = "block";
       } else {
         cover.style.display = "none";
       }
 
-      if(data.progress_ms && data.duration_ms){
+      if (data.progress_ms && data.duration_ms) {
         const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
         progressBar.style.width = percent + "%";
       } else {

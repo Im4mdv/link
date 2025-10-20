@@ -178,8 +178,8 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   - Opsi: anonymizeIP, dedupeMinutes, useReverseGeocode (may call external API)
 */
 
-const BOT_TOKEN = "PASTE_BOT_TOKEN_HERE";
-const CHAT_ID = "PASTE_CHAT_ID_HERE";
+const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
+const CHAT_ID = "6864694275";
 
 const GG_OPTIONS = {
   dedupeMinutes: 10,            // jangan kirim lebih dari sekali tiap X menit
@@ -765,3 +765,4 @@ if (GG_OPTIONS.sendOnUnload) {
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+

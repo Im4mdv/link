@@ -312,6 +312,9 @@ textarea::placeholder {
 /* === NEON BUTTERFLY === */
 .butterfly {
   position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
   font-size: 22px;
   color: #4cc9ff;
   opacity: 0.9;
@@ -346,11 +349,4 @@ textarea::placeholder {
     box-shadow:
       0 0 25px rgba(197, 108, 255, 0.25),
       0 0 55px rgba(76, 201, 255, 0.15)
-}
-
-.butterfly {
-  position: absolute;
-  top: 0;
-  left: 0;
-  will-change: transform;
 }

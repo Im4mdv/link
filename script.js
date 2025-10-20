@@ -249,52 +249,114 @@ async function showVisitorInfo() {
 }
 showVisitorInfo();
 
-// === EFEK BUTTERFLY 💸 ===
-(function(){
+// === EFEK BUTTERFLY 💸 (OPTIMASI 60 FPS SAAT GESER) ===
+(function () {
   const area = document.querySelector('.card');
   const butterflies = [];
   const butterflyCount = 7;
   let holdActive = false;
   let holdX = 0;
   let holdY = 0;
+  let cachedRect = area.getBoundingClientRect();
+
+  // update cache saat resize
+  window.addEventListener('resize', () => {
+    cachedRect = area.getBoundingClientRect();
+  });
+
   area.style.position = 'relative';
   area.style.overflow = 'hidden';
-  function getBounds(){ const rect=area.getBoundingClientRect(); return { width: area.clientWidth, height: area.clientHeight, left: rect.left, top: rect.top }; }
+
+  function getBounds() {
+    return {
+      width: area.clientWidth,
+      height: area.clientHeight,
+      left: cachedRect.left,
+      top: cachedRect.top
+    };
+  }
+
   const bounds = getBounds();
-  for(let i=0;i<butterflyCount;i++){
-    const b=document.createElement('div'); b.className='butterfly'; b.textContent='💸'; area.appendChild(b);
-    butterflies.push({ el:b, x:Math.random()*bounds.width, y:Math.random()*bounds.height, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.2, size:16+Math.random()*10, flapOffset:Math.random()*Math.PI*2 });
+  for (let i = 0; i < butterflyCount; i++) {
+    const b = document.createElement('div');
+    b.className = 'butterfly';
+    b.textContent = '💸';
+    area.appendChild(b);
+    butterflies.push({
+      el: b,
+      x: Math.random() * bounds.width,
+      y: Math.random() * bounds.height,
+      vx: (Math.random() - 0.5) * 1.2,
+      vy: (Math.random() - 0.5) * 1.2,
+      size: 16 + Math.random() * 10,
+      flapOffset: Math.random() * Math.PI * 2
+    });
     b.style.fontSize = butterflies[i].size + 'px';
   }
-  function moveButterflies(){
+
+  // animasi terbang
+  function moveButterflies() {
     const rect = getBounds();
-    const time = performance.now()/200;
-    butterflies.forEach(b=>{
+    const time = performance.now() / 200;
+    butterflies.forEach(b => {
       b.vy += 0.002;
-      if(holdActive){ const dx=holdX-b.x; const dy=holdY-b.y; b.vx += dx*0.002; b.vy += dy*0.002; }
-      b.vx += Math.sin(time + b.flapOffset)*0.04;
-      b.vy += Math.cos(time + b.flapOffset)*0.02;
-      b.x += b.vx; b.y += b.vy;
-      if(b.x <= 0 || b.x >= rect.width - b.size) b.vx *= -0.8;
-      if(b.y <= 0 || b.y >= rect.height - b.size) b.vy *= -0.8;
+      if (holdActive) {
+        const dx = holdX - b.x;
+        const dy = holdY - b.y;
+        b.vx += dx * 0.002;
+        b.vy += dy * 0.002;
+      }
+      b.vx += Math.sin(time + b.flapOffset) * 0.04;
+      b.vy += Math.cos(time + b.flapOffset) * 0.02;
+      b.x += b.vx;
+      b.y += b.vy;
+      if (b.x <= 0 || b.x >= rect.width - b.size) b.vx *= -0.8;
+      if (b.y <= 0 || b.y >= rect.height - b.size) b.vy *= -0.8;
       b.vx = Math.max(-1.8, Math.min(1.5, b.vx));
       b.vy = Math.max(-1.8, Math.min(1.8, b.vy));
-      const flap = Math.sin(time*8 + b.flapOffset)*20;
-      b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px';
-      b.el.style.transform = `rotate(${flap}deg) scale(${1 + Math.sin(time*4 + b.flapOffset)*0.05})`;
+      const flap = Math.sin(time * 8 + b.flapOffset) * 20;
+      b.el.style.left = b.x + 'px';
+      b.el.style.top = b.y + 'px';
+      b.el.style.transform = `rotate(${flap}deg) scale(${1 + Math.sin(time * 4 + b.flapOffset) * 0.05})`;
     });
     requestAnimationFrame(moveButterflies);
   }
   moveButterflies();
-  const startHold=(x,y)=>{ const rect=getBounds(); holdActive=true; holdX=x-rect.left; holdY=y-rect.top; };
-  const moveHold=(x,y)=>{ if(holdActive){ const rect=getBounds(); holdX=x-rect.left; holdY=y-rect.top; } };
-  const endHold=()=> holdActive=false;
-  area.addEventListener('mousedown', e=> startHold(e.clientX,e.clientY));
-  area.addEventListener('mousemove', e=> moveHold(e.clientX,e.clientY));
+
+  // input gerakan di-throttle dengan rAF
+  let pendingMove = null;
+  function updateHold() {
+    if (pendingMove && holdActive) {
+      holdX = pendingMove.x - cachedRect.left;
+      holdY = pendingMove.y - cachedRect.top;
+      pendingMove = null;
+    }
+    requestAnimationFrame(updateHold);
+  }
+  updateHold();
+
+  const startHold = (x, y) => {
+    holdActive = true;
+    holdX = x - cachedRect.left;
+    holdY = y - cachedRect.top;
+  };
+  const endHold = () => (holdActive = false);
+
+  area.addEventListener('mousedown', e => startHold(e.clientX, e.clientY));
   area.addEventListener('mouseup', endHold);
   area.addEventListener('mouseleave', endHold);
-  area.addEventListener('touchstart', e=>{ const t=e.touches[0]; startHold(t.clientX,t.clientY); });
-  area.addEventListener('touchmove', e=>{ const t=e.touches[0]; moveHold(t.clientX,t.clientY); });
+  area.addEventListener('mousemove', e => {
+    pendingMove = { x: e.clientX, y: e.clientY };
+  });
+
+  area.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    startHold(t.clientX, t.clientY);
+  });
+  area.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    pendingMove = { x: t.clientX, y: t.clientY };
+  });
   area.addEventListener('touchend', endHold);
   area.addEventListener('touchcancel', endHold);
 })();

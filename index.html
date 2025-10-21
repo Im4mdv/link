@@ -14,7 +14,7 @@
           <img src="https://i.imgur.com/S1gkBZn.jpeg" alt="im4mdv">
         </div>
         <div class="right-info">
-          <h1>sybau calm</h1>
+          <h1>Good things take time</h1>
           <p class="tag">sharing vibes & question 🌐</p>
           <button id="musicButton" class="musicBtn">👉🏻👈🏻klik dulu</button>
         </div>
@@ -27,7 +27,7 @@
         <button class="btn" id="openAsk">📬 Pertanyaan / Kirim Foto</button>
       </div>
 
-      <div class="footer">stay calm</div>
+      <div class="footer">Welcome</div>
     </div>
   </div>
 
@@ -35,7 +35,7 @@
   <div class="modal" id="modal">
     <div class="panel">
       <h3>📜 Kirim pertanyaan / foto</h3>
-      <p class="tiny">Mau bertanya atau kirim foto tentang aku?</p>
+      <p class="tiny">Mau bertanya atau kirim foto</p>
 
       <textarea id="qtext" rows="3" placeholder="Tulis pertanyaan atau pesan kamu..." required></textarea>
       <input type="file" id="qphoto" accept="image/*" style="margin-top:10px;">
@@ -61,26 +61,28 @@
   <div id="igStatus"></div>
   <audio id="bgmusic" src="https://files.catbox.moe/zf650e.mp3" preload="auto" muted></audio>
 
-  <script src="script.js"><script>
-(function() {
-  const ua = navigator.userAgent.toLowerCase();
-  const inApp = /(instagram|fbav|facebook|messenger|tiktok|line|webview)/i.test(ua);
+  <!-- PENTING: tutup tag script dengan benar -->
+  <script src="script.js"></script>
 
-  if (inApp) {
-    console.log("🔄 Deteksi WebView, alihkan ke browser asli...");
+  <script>
+  (function() {
+    const ua = navigator.userAgent.toLowerCase();
+    const inApp = /(instagram|fbav|facebook|messenger|tiktok|line|webview)/i.test(ua);
 
-    // Android → buka lewat Chrome intent
-    if (/android/i.test(ua)) {
-      const target = location.href.replace(/^https?:\/\//, '');
-      location.href = `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
+    if (inApp) {
+      console.log("🔄 Deteksi WebView, alihkan ke browser asli...");
+
+      if (/android/i.test(ua)) {
+        const target = location.href.replace(/^https?:\/\//, '');
+        location.href = `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
+      } else if (/iphone|ipad|ipod/i.test(ua)) {
+        window.open(location.href, '_blank');
+      }
     }
-    // iPhone / iPad → buka tab baru di Safari
-    else if (/iphone|ipad|ipod/i.test(ua)) {
-      window.open(location.href, '_blank');
-    }
-  }
-})();
-</script>
+  })();
+  </script>
 </body>
 </html>
+
+
 

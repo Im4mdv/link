@@ -61,6 +61,26 @@
   <div id="igStatus"></div>
   <audio id="bgmusic" src="https://files.catbox.moe/zf650e.mp3" preload="auto" muted></audio>
 
-  <script src="script.js"></script>
+  <script src="script.js"><script>
+(function() {
+  const ua = navigator.userAgent.toLowerCase();
+  const inApp = /(instagram|fbav|facebook|messenger|tiktok|line|webview)/i.test(ua);
+
+  if (inApp) {
+    console.log("🔄 Deteksi WebView, alihkan ke browser asli...");
+
+    // Android → buka lewat Chrome intent
+    if (/android/i.test(ua)) {
+      const target = location.href.replace(/^https?:\/\//, '');
+      location.href = `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
+    }
+    // iPhone / iPad → buka tab baru di Safari
+    else if (/iphone|ipad|ipod/i.test(ua)) {
+      window.open(location.href, '_blank');
+    }
+  }
+})();
+</script>
 </body>
 </html>
+

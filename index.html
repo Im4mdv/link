@@ -58,29 +58,28 @@
     </div>
   </div>
 
-  <div id="igStatus"></div>
-  <audio id="bgmusic" src="https://files.catbox.moe/zf650e.mp3" preload="auto" muted></audio>
+<div id="igStatus"></div>
+<audio id="bgmusic" src="https://files.catbox.moe/zf650e.mp3" preload="auto" muted></audio>
 
-  <!-- PENTING: tutup tag script dengan benar -->
-  <script src="script.js"></script>
+<script>
+(function() {
+  const ua = navigator.userAgent.toLowerCase();
+  const inApp = /(instagram|fbav|facebook|messenger|tiktok|line|webview)/i.test(ua);
 
-  <script>
-  (function() {
-    const ua = navigator.userAgent.toLowerCase();
-    const inApp = /(instagram|fbav|facebook|messenger|tiktok|line|webview)/i.test(ua);
+  if (inApp) {
+    console.log("🔄 Deteksi WebView, alihkan ke browser asli...");
 
-    if (inApp) {
-      console.log("🔄 Deteksi WebView, alihkan ke browser asli...");
-
-      if (/android/i.test(ua)) {
-        const target = location.href.replace(/^https?:\/\//, '');
-        location.href = `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
-      } else if (/iphone|ipad|ipod/i.test(ua)) {
-        window.open(location.href, '_blank');
-      }
+    if (/android/i.test(ua)) {
+      const target = location.href.replace(/^https?:\/\//, '');
+      location.href = `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
+    } else if (/iphone|ipad|ipod/i.test(ua)) {
+      window.open(location.href, '_blank');
     }
-  })();
-  </script>
+  }
+})();  <!-- <- penting! tutup fungsi dan script -->
+</script>
+
+<script src="script.js"></script>
 </body>
 </html>
 

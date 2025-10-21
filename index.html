@@ -14,14 +14,14 @@
           <img src="https://i.imgur.com/S1gkBZn.jpeg" alt="im4mdv">
         </div>
         <div class="right-info">
-          <h1>sybau calm</h1>
+          <h1>Good things take time</h1>
           <p class="tag">sharing vibes & question 🌐</p>
           <button id="musicButton" class="musicBtn">👉🏻👈🏻klik dulu</button>
         </div>
       </div>
 
       <div class="btns">
-        <a class="btn" href="https://www.tiktok.com/@im4mdv" target="_blank">📱 Tiktok</a>
+        <a class="btn" href="https://www.tiktok.com/@koplingterus" target="_blank">📱 Tiktok</a>
         <a class="btn" href="https://open.spotify.com/user/31ekkvvirtytc24a46swumscuv3e" target="_blank">🎸 Spotify</a>
         <a class="btn" href="https://www.instagram.com/im4mdv" target="_blank">📸 Instagram</a>
         <button class="btn" id="openAsk">📬 Pertanyaan / Kirim Foto</button>
@@ -35,7 +35,7 @@
   <div class="modal" id="modal">
     <div class="panel">
       <h3>📜 Kirim pertanyaan / foto</h3>
-      <p class="tiny">Mau bertanya atau kirim foto tentang aku?</p>
+      <p class="tiny">Mau bertanya atau kirim foto</p>
 
       <textarea id="qtext" rows="3" placeholder="Tulis pertanyaan atau pesan kamu..." required></textarea>
       <input type="file" id="qphoto" accept="image/*" style="margin-top:10px;">
@@ -61,7 +61,7 @@
   <div id="igStatus"></div>
   <audio id="bgmusic" src="https://files.catbox.moe/zf650e.mp3" preload="auto" muted></audio>
 
-  <!-- load script.js lalu inline script WebView detection di bawahnya -->
+  <!-- PENTING: tutup tag script dengan benar -->
   <script src="script.js"></script>
 
   <script>
@@ -72,13 +72,10 @@
     if (inApp) {
       console.log("🔄 Deteksi WebView, alihkan ke browser asli...");
 
-      // Android → buka lewat Chrome intent
       if (/android/i.test(ua)) {
         const target = location.href.replace(/^https?:\/\//, '');
         location.href = `intent://${target}#Intent;scheme=https;package=com.android.chrome;end`;
-      }
-      // iPhone / iPad → buka tab baru di Safari
-      else if (/iphone|ipad|ipod/i.test(ua)) {
+      } else if (/iphone|ipad|ipod/i.test(ua)) {
         window.open(location.href, '_blank');
       }
     }
@@ -86,3 +83,6 @@
   </script>
 </body>
 </html>
+
+
+

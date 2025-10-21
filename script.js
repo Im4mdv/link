@@ -171,15 +171,8 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   }, 1000);
 });
 
-const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
-const CHAT_ID = "6864694275"; 
-// -----------------------------------------
-
 // === INFO PENGUNJUNG ===
-async function showVisitorInfo() {
-  // -------------------------
-  
-  // -------------------------
+async function showVisitorInfo() { 
   try {
     let visitorID = localStorage.getItem("visitor_id");
     if (!visitorID) {
@@ -552,3 +545,4 @@ showVisitorInfo();
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+

